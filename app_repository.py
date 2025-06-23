@@ -519,73 +519,13 @@ def main():
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"grain\" width=\"100\" height=\"100\" patternUnits=\"userSpaceOnUse\"><circle cx=\"25\" cy=\"25\" r=\"1\" fill=\"%23ffffff\" opacity=\"0.1\"/><circle cx=\"75\" cy=\"75\" r=\"1\" fill=\"%23ffffff\" opacity=\"0.1\"/><circle cx=\"75\" cy=\"25\" r=\"0.5\" fill=\"%23ffffff\" opacity=\"0.1\"/><circle cx=\"25\" cy=\"75\" r=\"0.5\" fill=\"%23ffffff\" opacity=\"0.1\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23grain)\"/></svg>');
             border-radius: 15px;
             margin-top: 40px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
         ">
-            <svg width="200" height="500" viewBox="0 0 200 500" xmlns="http://www.w3.org/2000/svg">
-                <!-- Background circles -->
-                <circle cx="100" cy="100" r="60" fill="rgba(255,255,255,0.1)" />
-                <circle cx="50" cy="200" r="30" fill="rgba(255,255,255,0.05)" />
-                <circle cx="150" cy="350" r="40" fill="rgba(255,255,255,0.05)" />
-                
-                <!-- Stock chart lines -->
-                <polyline points="20,150 40,130 60,140 80,120 100,110 120,100 140,90 160,85 180,80" 
-                         stroke="#00ff88" stroke-width="3" fill="none" opacity="0.8"/>
-                <polyline points="20,180 40,170 60,160 80,150 100,140 120,135 140,130 160,125 180,120" 
-                         stroke="#ff6b6b" stroke-width="3" fill="none" opacity="0.8"/>
-                <polyline points="20,200 40,190 60,185 80,180 100,175 120,170 140,165 160,160 180,155" 
-                         stroke="#4ecdc4" stroke-width="3" fill="none" opacity="0.8"/>
-                
-                <!-- Candlestick chart -->
-                <rect x="30" y="250" width="8" height="30" fill="#00ff88" opacity="0.7"/>
-                <line x1="34" y1="240" x2="34" y2="290" stroke="#00ff88" stroke-width="2"/>
-                <rect x="50" y="260" width="8" height="20" fill="#ff6b6b" opacity="0.7"/>
-                <line x1="54" y1="250" x2="54" y2="290" stroke="#ff6b6b" stroke-width="2"/>
-                <rect x="70" y="245" width="8" height="35" fill="#00ff88" opacity="0.7"/>
-                <line x1="74" y1="235" x2="74" y2="295" stroke="#00ff88" stroke-width="2"/>
-                <rect x="90" y="255" width="8" height="25" fill="#ff6b6b" opacity="0.7"/>
-                <line x1="94" y1="245" x2="94" y2="290" stroke="#ff6b6b" stroke-width="2"/>
-                <rect x="110" y="240" width="8" height="40" fill="#00ff88" opacity="0.7"/>
-                <line x1="114" y1="230" x2="114" y2="295" stroke="#00ff88" stroke-width="2"/>
-                <rect x="130" y="250" width="8" height="30" fill="#4ecdc4" opacity="0.7"/>
-                <line x1="134" y1="240" x2="134" y2="290" stroke="#4ecdc4" stroke-width="2"/>
-                <rect x="150" y="245" width="8" height="35" fill="#00ff88" opacity="0.7"/>
-                <line x1="154" y1="235" x2="154" y2="295" stroke="#00ff88" stroke-width="2"/>
-                
-                <!-- AI Brain/Circuit pattern -->
-                <circle cx="100" cy="380" r="35" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-                <circle cx="100" cy="380" r="25" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-                <circle cx="100" cy="380" r="15" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
-                <circle cx="100" cy="380" r="5" fill="rgba(255,255,255,0.6)"/>
-                
-                <!-- Circuit lines -->
-                <line x1="80" y1="360" x2="120" y2="400" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-                <line x1="120" y1="360" x2="80" y2="400" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-                <line x1="85" y1="380" x2="115" y2="380" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-                <line x1="100" y1="365" x2="100" y2="395" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-                
-                <!-- Data points -->
-                <circle cx="40" cy="320" r="3" fill="#ffd93d" opacity="0.8"/>
-                <circle cx="80" cy="310" r="3" fill="#6bcf7f" opacity="0.8"/>
-                <circle cx="120" cy="325" r="3" fill="#4d9de0" opacity="0.8"/>
-                <circle cx="160" cy="315" r="3" fill="#e15554" opacity="0.8"/>
-                
-                <!-- Portfolio pie chart representation -->
-                <circle cx="100" cy="450" r="25" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-                <path d="M 100 425 A 25 25 0 0 1 118 438 L 100 450 Z" fill="#00ff88" opacity="0.7"/>
-                <path d="M 118 438 A 25 25 0 0 1 107 474 L 100 450 Z" fill="#ff6b6b" opacity="0.7"/>
-                <path d="M 107 474 A 25 25 0 0 1 82 462 L 100 450 Z" fill="#4ecdc4" opacity="0.7"/>
-                <path d="M 82 462 A 25 25 0 1 1 100 425 L 100 450 Z" fill="#ffd93d" opacity="0.7"/>
-                
-                <!-- Floating numbers/percentages -->
-                <text x="160" y="100" fill="rgba(255,255,255,0.6)" font-size="12" font-family="monospace">+12.5%</text>
-                <text x="20" y="320" fill="rgba(255,255,255,0.6)" font-size="10" font-family="monospace">AI</text>
-                <text x="140" y="480" fill="rgba(255,255,255,0.6)" font-size="10" font-family="monospace">PORTFOLIO</text>
-            </svg>
         </div>
         """, unsafe_allow_html=True)
     

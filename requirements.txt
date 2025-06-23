@@ -3,7 +3,7 @@ yfinance==0.2.33
 requests
 lxml
 plotly
-pandas
+pandas>=1.5
 numpy
 scipy
 warnings

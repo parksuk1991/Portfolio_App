@@ -546,15 +546,6 @@ def main():
                 position: relative;
                 font-family: 'Arial', sans-serif;
             ">
-                📊<br><br>
-                하<br>
-                단<br>
-                을<br><br>
-                확<br>
-                인<br>
-                하<br>
-                세<br>
-                요<br><br>
                 👇
             </div>
         </div>

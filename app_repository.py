@@ -510,9 +510,7 @@ def main():
         - **상관관계 분석**: 기존 포트폴리오와 높은 상관관계를 가진 대체 자산 선택
         - **자산 분류별 대체**: 성장주, 가치주, 섹터별 등 자산 특성에 따른 체계적 대체
         """)
-    
     with col2:
-        # 우측 AI Stock Market 이미지 추가
         st.markdown("""
         <div style="
             height: 600px;
@@ -532,8 +530,9 @@ def main():
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"grain\" width=\"100\" height=\"100\" patternUnits=\"userSpaceOnUse\"><circle cx=\"25\" cy=\"25\" r=\"1\" fill=\"%23ffffff\" opacity=\"0.1\"/><circle cx=\"75\" cy=\"75\" r=\"1\" fill=\"%23ffffff\" opacity=\"0.1\"/><circle cx=\"75\" cy=\"25\" r=\"0.5\" fill=\"%23ffffff\" opacity=\"0.1\"/><circle cx=\"25\" cy=\"75\" r=\"0.5\" fill=\"%23ffffff\" opacity=\"0.1\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23grain)\"/></svg>');
+                background: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cdefs%3E%3Cpattern id=%22grain%22 width=%22100%22 height=%22100%22 patternUnits=%22userSpaceOnUse%22%3E%3Ccircle cx=%2225%22 cy=%2225%22 r=%221%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2275%22 cy=%2275%22 r=%221%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2275%22 cy=%2225%22 r=%220.5%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2225%22 cy=%2275%22 r=%220.5%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=%22100%22 height=%22100%22 fill=%22url(%23grain)%22/%3E%3C/svg%3E');
             "></div>
+        </div>
         """, unsafe_allow_html=True)
     
     st.markdown("---")

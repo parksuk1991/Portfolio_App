@@ -41,7 +41,7 @@ BENCHMARK_OPTIONS = {
     'MSCI ACWI 지수': 'ACWI'
 }
 
-# 유사 자산 매핑 (새로운 ETF -> 과거에 존재했던 유사 자산)
+# 유사 자산 매핑
 SIMILAR_ASSETS_MAP = {
     # 섹터 ETF 매핑
     'XLC': ['XTL', 'IYZ', 'VNQ'],  # Communication Services -> Telecom/Tech/REITs
@@ -63,12 +63,12 @@ SIMILAR_ASSETS_MAP = {
     'USMV': ['SPLV', 'EFAV', 'SPY'],  # Low Volatility
     'SPMO': ['MTUM', 'PDP', 'QQQ'],  # Momentum
 
-    # 국제 ETF 매핑
+    # 리전 ETF 매핑
     'IDEV': ['EFA', 'VEA', 'ACWX'],  # Developed Markets
     'IEMG': ['EEM', 'VWO', 'SCHE'],  # Emerging Markets
 }
 
-# 대체 자산 풀 (역사가 긴 자산들)
+# 대체 자산 풀
 FALLBACK_ASSETS = {
     'large_cap_growth': ['QQQ', 'VUG', 'IVW'],
     'large_cap_value': ['VTV', 'IVE', 'DVY'],
@@ -100,7 +100,7 @@ def get_asset_classification(ticker):
 def find_best_substitute(target_ticker, available_data, start_date, end_date, min_correlation=0.7):
     """최적의 대체 자산 찾기"""
 
-    # 1단계: 미리 정의된 유사 자산 확인
+    # 1단계: 사전 정의된 유사 자산 확인
     if target_ticker in SIMILAR_ASSETS_MAP:
         candidates = SIMILAR_ASSETS_MAP[target_ticker]
 
@@ -111,14 +111,14 @@ def find_best_substitute(target_ticker, available_data, start_date, end_date, mi
                     # 기존 데이터와 상관관계 확인 (겹치는 기간이 있다면)
                     if candidate in available_data.columns:
                         overlap_data = available_data[[candidate]].dropna()
-                        if len(overlap_data) > 50:  # 충분한 겹치는 데이터
+                        if len(overlap_data) > 50:  # 충분히 겹치는 데이터
                             return candidate, candidate_data
                     else:
                         return candidate, candidate_data
             except:
                 continue
 
-    # 2단계: 자산 분류에 따른 대체 자산 찾기
+    # 2단계: 자산 분류에 따른 대체 자산
     asset_class = get_asset_classification(target_ticker)
     fallback_candidates = FALLBACK_ASSETS.get(asset_class, FALLBACK_ASSETS['broad_market'])
 
@@ -221,13 +221,13 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         else:
             return None, {}
 
-    # 대체 자산 찾기 및 데이터 결합
+    # 대체 자산 찾기 + 데이터 결합
     st.info("🔄 대체 자산 검색 및 데이터 결합 중...")
 
     substitution_log = {}
     enhanced_data = original_data.copy()
 
-    # 기존 데이터를 DataFrame으로 결합
+    # 기존 데이터 DataFrame으로 결합
     if len(enhanced_data) > 0:
         available_data = pd.concat(enhanced_data.values(), axis=1)
         available_data.columns = enhanced_data.keys()
@@ -283,7 +283,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         st.error("❌ 사용 가능한 데이터가 없습니다.")
         return None, {}
 
-# 캐시된 데이터 로더 - 수정된 버전
+# 캐시된 데이터 로더
 @st.cache_data
 def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
     """향상된 유니버스 데이터 로더"""
@@ -474,7 +474,6 @@ def get_rebalancing_changes(current_weights, previous_weights):
     return changes
 
 # 메인 앱
-# 메인 앱
 def main():
     st.title("📈 Portfolio Backtesting App")
     st.markdown("##### 만든이: 박석")
@@ -490,7 +489,7 @@ def main():
     col1, col2 = st.columns([3, 1])  # 3:1 비율로 분할
     
     with col1:
-        # 앱 설명 섹션 - 업데이트
+        # 앱 설명 섹션
         st.markdown("### 📋 앱 소개")
         st.markdown("""
         **이 앱은 데이터 공백 자동 보완 기능을 갖춘 모멘텀 기반 포트폴리오 백테스팅 도구입니다.**
@@ -619,7 +618,7 @@ def main():
 
         try:
             with st.spinner("데이터 로딩 및 전처리 중..."):
-                # 향상된 데이터 로더 사용
+                #데이터 로더
                 monthly_df, substitution_log = load_universe_data_enhanced(
                     tickers, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'), fill_gaps
                 )
@@ -740,7 +739,7 @@ def main():
                 })
                 st.dataframe(info_df, use_container_width=True, hide_index=True)
 
-            # 최근 포트폴리오 구성과 리밸런싱 정보
+            # 포트폴리오 구성과 리밸런싱 정보
             st.subheader(f"📰 포트폴리오 업데이트 ({dt.date.today().strftime('%Y-%m')} 기준)")
 
             if weights_composition:
@@ -818,7 +817,7 @@ def main():
                     else:
                         st.info("비교할 이전 포트폴리오 데이터가 없습니다.")
 
-            # 차트 생성 - 수정된 부분
+            # 차트 생성
             st.subheader("📈 성과 분석")
             benchmark_name = BENCHMARK_NAMES.get(benchmark_ticker, benchmark_ticker)
 
@@ -857,7 +856,7 @@ def main():
             )
             st.plotly_chart(fig1, use_container_width=True)
 
-            # 4개 차트를 2x2로 배치
+            # 4개 차트 2x2로 배치
             col1, col2 = st.columns(2)
 
             with col1:

@@ -593,7 +593,7 @@ def main():
             return
 
         try:
-            with st.spinner("데이터 로딩 및 전처리 중..."):
+            with st.container("데이터 로딩 및 전처리 중..."):
                 # 향상된 데이터 로더 사용
                 monthly_df, substitution_log = load_universe_data_enhanced(
                     tickers, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'), fill_gaps
@@ -649,7 +649,7 @@ def main():
                 st.write(f"벤치마크 데이터 길이: {len(benchmark_returns)}")
                 st.write(f"벤치마크 데이터 타입: {type(benchmark_returns)}")
 
-            with st.spinner("백테스팅 실행 중..."):
+            with st.contatiner("백테스팅 실행 중..."):
                 # 백테스팅 실행
                 portfolio_returns, weights_composition = run_backtest(
                     stock_returns, window, top_n_stocks, upper_bound, lower_bound

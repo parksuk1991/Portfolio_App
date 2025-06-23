@@ -615,7 +615,7 @@ def main():
                         }
                         for original, info in substitution_log.items()
                     ])
-                    st.dataframe(substitute_df, use_spinner_width=True, hide_index=True)
+                    st.dataframe(substitute_df, use_container_width=True, hide_index=True)
 
                 # 벤치마크 데이터 로드
                 benchmark_data = load_benchmark_data(
@@ -649,7 +649,7 @@ def main():
                 st.write(f"벤치마크 데이터 길이: {len(benchmark_returns)}")
                 st.write(f"벤치마크 데이터 타입: {type(benchmark_returns)}")
 
-            with st.contatiner("백테스팅 실행 중..."):
+            with st.spinner("백테스팅 실행 중..."):
                 # 백테스팅 실행
                 portfolio_returns, weights_composition = run_backtest(
                     stock_returns, window, top_n_stocks, upper_bound, lower_bound
@@ -699,7 +699,7 @@ def main():
                     ]
                 }, index=['총 수익률', '연평균 수익률', '연변동성', '샤프 비율', '최대 낙폭'])
 
-                st.dataframe(metrics_df, use_spinner_width=True)
+                st.dataframe(metrics_df, use_container_width=True)
 
             with col2:
                 st.subheader("📋 백테스팅 정보")
@@ -713,7 +713,7 @@ def main():
                         f"{lower_bound:.1%} ~ {upper_bound:.1%}"
                     ]
                 })
-                st.dataframe(info_df, use_spinner_width=True, hide_index=True)
+                st.dataframe(info_df, use_container_width=True, hide_index=True)
 
             # 최근 포트폴리오 구성과 리밸런싱 정보
             st.subheader(f"📰 포트폴리오 업데이트 ({dt.date.today().strftime('%Y-%m')} 기준)")
@@ -737,7 +737,7 @@ def main():
                         {'종목': stock, '비중': f"{weight:.2%}"}
                         for stock, weight in sorted(current_weights.items(), key=lambda x: x[1], reverse=True)
                     ])
-                    st.dataframe(current_df, use_spinner_width=True, hide_index=True)
+                    st.dataframe(current_df, use_container_width=True, hide_index=True)
 
                     # 파이 차트
                     fig_pie = px.pie(
@@ -746,7 +746,7 @@ def main():
                         title="📒현재 비중 분포"
                     )
                     fig_pie.update_layout(template="plotly_dark", height=400)
-                    st.plotly_chart(fig_pie, use_spinner_width=True)
+                    st.plotly_chart(fig_pie, use_container_width=True)
 
                 with col2:
                     # 리밸런싱 변화
@@ -767,7 +767,7 @@ def main():
                                 })
 
                             rebalancing_df = pd.DataFrame(rebalancing_data)
-                            st.dataframe(rebalancing_df, use_spinner_width=True, hide_index=True)
+                            st.dataframe(rebalancing_df, use_container_width=True, hide_index=True)
 
                             # 리밸런싱 변화 시각화
                             stocks = list(changes.keys())
@@ -787,7 +787,7 @@ def main():
                                 template="plotly_dark",
                                 height=400
                             )
-                            st.plotly_chart(fig_rebal, use_spinner_width=True)
+                            st.plotly_chart(fig_rebal, use_container_width=True)
                         else:
                             st.info("이전 월 대비 유의미한 리밸런싱 변화가 없습니다.")
                     else:
@@ -830,7 +830,7 @@ def main():
                 hovermode='x unified',
                 template="plotly_dark"
             )
-            st.plotly_chart(fig1, use_spinner_width=True)
+            st.plotly_chart(fig1, use_container_width=True)
 
             # 4개 차트를 2x2로 배치
             col1, col2 = st.columns(2)
@@ -859,7 +859,7 @@ def main():
                     barmode='overlay',
                     template="plotly_dark"
                 )
-                st.plotly_chart(fig2, use_spinner_width=True)
+                st.plotly_chart(fig2, use_container_width=True)
 
             with col2:
                 # 롤링 샤프 비율 (12개월)
@@ -888,7 +888,7 @@ def main():
                     hovermode='x unified',
                     template="plotly_dark"
                 )
-                st.plotly_chart(fig3, use_spinner_width=True)
+                st.plotly_chart(fig3, use_container_width=True)
 
             # 낙폭 비교 차트
             portfolio_cumulative = (1 + portfolio_returns_aligned).cumprod()
@@ -925,7 +925,7 @@ def main():
                 hovermode='x unified',
                 template="plotly_dark"
             )
-            st.plotly_chart(fig4, use_spinner_width=True)
+            st.plotly_chart(fig4, use_container_width=True)
 
             # 포트폴리오 구성 히스토리
             st.subheader("📑 포트폴리오 구성 히스토리")
@@ -944,7 +944,7 @@ def main():
 
                         col1, col2 = st.columns([2, 1])
                         with col1:
-                            st.dataframe(weights_df, use_spinner_width=True, hide_index=True)
+                            st.dataframe(weights_df, use_container_width=True, hide_index=True)
 
                         with col2:
                             # 파이 차트
@@ -954,7 +954,7 @@ def main():
                                 title="가중치 분포"
                             )
                             fig_pie.update_layout(template="plotly_dark", height=300)
-                            st.plotly_chart(fig_pie, use_spinner_width=True)
+                            st.plotly_chart(fig_pie, use_container_width=True)
 
         except Exception as e:
             st.error(f"백테스팅 실행 중 오류가 발생했습니다: {str(e)}")

@@ -537,6 +537,19 @@ def main():
     )
 
     # 날짜 설정 - 간격 조정
+
+    st.markdown("""
+        <style>
+        /* date input 라벨 크기 줄이기 */
+        .stDateInput label {
+            font-size: 13px !important;
+        }
+        /* 달력 내부 텍스트 크기 줄이기 */
+        .stDateInput input {
+            font-size: 13px !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
     st.sidebar.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
     
     col1, col2 = st.sidebar.columns(2)

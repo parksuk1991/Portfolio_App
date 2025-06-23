@@ -6,4 +6,3 @@ plotly
 pandas>=1.5
 numpy
 scipy
-warnings

@@ -523,34 +523,41 @@ def main():
     tickers_input = st.sidebar.text_area(
         "종목 티커 (쉼표로 구분)",
         value=", ".join(default_tickers[:25]),
-        help="예시: SPY, QQQ, XLK"
+        help="예시: SPY, QQQ, XLK",
+        height=80
     )
 
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
     # 데이터 공백 보완 옵션 추가
     fill_gaps = st.sidebar.checkbox(
-        "🔄 데이터 공백 자동 보완",
+        "데이터 공백 보완 옵션",
         value=True,
         help="선택한 자산의 과거 데이터가 부족한 경우, 유사한 자산으로 자동 대체합니다."
     )
 
-    # 날짜 설정
-    start_date = st.sidebar.date_input(
-        "시작 날짜",
-        value=dt.date(2010, 1, 1),
-        min_value=dt.date(2005, 1, 1),  # 더 이른 날짜부터 가능
-        max_value=dt.date.today()
-    )
-
-    end_date = st.sidebar.date_input(
-        "종료 날짜",
-        value=dt.date.today(),
-        min_value=start_date,
-        max_value=dt.date.today()
-    )
+    # 날짜 설정 - 간격 조정
+    st.sidebar.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        start_date = st.date_input(
+            "시작 날짜",
+            value=dt.date(2010, 1, 1),
+            min_value=dt.date(2005, 1, 1),
+            max_value=dt.date.today()
+        )
+    
+    with col2:
+        end_date = st.date_input(
+            "종료 날짜",
+            value=dt.date.today(),
+            min_value=start_date,
+            max_value=dt.date.today()
+        )
 
     # 백테스팅 파라미터
+    st.sidebar.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
     st.sidebar.subheader("백테스팅 설정")
 
     window = st.sidebar.slider("모멘텀 윈도우 (개월)", 3, 12, 6)

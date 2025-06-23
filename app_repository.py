@@ -531,7 +531,7 @@ def main():
 
     # 데이터 공백 보완 옵션 추가
     fill_gaps = st.sidebar.checkbox(
-        "데이터 공백 보완 옵션",
+        "데이터 공백 자동 보완 옵션",
         value=True,
         help="선택한 자산의 과거 데이터가 부족한 경우, 유사한 자산으로 자동 대체합니다."
     )
@@ -542,11 +542,11 @@ def main():
         <style>
         /* date input 라벨 크기 줄이기 */
         .stDateInput label {
-            font-size: 13px !important;
+            font-size: 14px !important;
         }
         /* 달력 내부 텍스트 크기 줄이기 */
         .stDateInput input {
-            font-size: 13px !important;
+            font-size: 14px !important;
         }
         </style>
     """, unsafe_allow_html=True)

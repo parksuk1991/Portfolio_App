@@ -80,12 +80,207 @@ FALLBACK_ASSETS = {
 }
 
 def get_asset_classification(ticker):
+    """자산 분류 함수"""
+    growth_etfs = ['SPYG', 'VUG', 'IVW', 'MGK', 'QQQ', 'XLK']
+    value_etfs = ['SPYV', 'VTV', 'IVE', 'DVY', 'VYM']
+    international_etfs = ['IDEV', 'EFA', 'VEA', 'IEMG', 'EEM', 'VWO']
+    sector_etfs = ['XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU']
+
+    if ticker in growth_etfs:
+        return 'large_cap_growth'
+    elif ticker in value_etfs:
+        return 'large_cap_value'
+    elif ticker in international_etfs:
+        return 'international_dev' if ticker in ['IDEV', 'EFA', 'VEA'] else 'international_em'
+    elif ticker in sector_etfs:
+        return 'sectors'
+    else:
         return 'broad_market'
 
 def find_best_substitute(target_ticker, available_data, start_date, end_date, min_correlation=0.7):
+    """최적의 대체 자산 찾기"""
+
+    # 1단계: 미리 정의된 유사 자산 확인
+    if target_ticker in SIMILAR_ASSETS_MAP:
+        candidates = SIMILAR_ASSETS_MAP[target_ticker]
+
+        for candidate in candidates:
+            try:
+                candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
+                if len(candidate_data) > 252:  # 최소 1년 데이터
+                    # 기존 데이터와 상관관계 확인 (겹치는 기간이 있다면)
+                    if candidate in available_data.columns:
+                        overlap_data = available_data[[candidate]].dropna()
+                        if len(overlap_data) > 50:  # 충분한 겹치는 데이터
+                            return candidate, candidate_data
+                    else:
+                        return candidate, candidate_data
+            except:
+                continue
+
+    # 2단계: 자산 분류에 따른 대체 자산 찾기
+    asset_class = get_asset_classification(target_ticker)
+    fallback_candidates = FALLBACK_ASSETS.get(asset_class, FALLBACK_ASSETS['broad_market'])
+
+    best_candidate = None
+    best_data = None
+    best_correlation = 0
+
+    for candidate in fallback_candidates:
+        if candidate == target_ticker:
+            continue
+
+        try:
+            candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
+            if len(candidate_data) > 252:  # 최소 1년 데이터
+
+                # 기존 포트폴리오 자산들과의 상관관계 확인
+                if len(available_data.columns) > 0:
+                    # 공통 기간에서 상관관계 계산
+                    common_period = candidate_data.index.intersection(available_data.index)
+                    if len(common_period) > 50:
+                        candidate_returns = candidate_data.loc[common_period].pct_change().dropna()
+                        portfolio_returns = available_data.loc[common_period].mean(axis=1).pct_change().dropna()
+
+                        # 공통 인덱스로 정렬
+                        common_idx = candidate_returns.index.intersection(portfolio_returns.index)
+                        if len(common_idx) > 30:
+                            corr, _ = pearsonr(candidate_returns.loc[common_idx],
+                                             portfolio_returns.loc[common_idx])
+
+                            if corr > best_correlation and corr > min_correlation:
+                                best_correlation = corr
+                                best_candidate = candidate
+                                best_data = candidate_data
+
+                # 첫 번째 후보가 없다면 일단 선택
+                if best_candidate is None:
+                    best_candidate = candidate
+                    best_data = candidate_data
+                    break
+
+        except Exception as e:
+            continue
+
     return best_candidate, best_data
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
+    """데이터 공백 채우기"""
+
+    st.info("📊 데이터 로딩 및 공백 분석 중...")
+
+    # 원본 데이터 로드 시도
+    original_data = {}
+    missing_tickers = []
+    data_info = {}
+
+    for ticker in tickers:
+        try:
+            data = yf.download(ticker, start=start_date, end=end_date)['Close']
+
+            if isinstance(data, pd.Series):
+                data = data.to_frame(name=ticker)
+
+            # 데이터 품질 확인
+            data_start = data.first_valid_index()
+            data_end = data.last_valid_index()
+            data_length = len(data.dropna())
+
+            # 목표 시작일과 실제 데이터 시작일 비교
+            target_start = pd.to_datetime(start_date)
+
+            if data_start is None or data_length < 50:
+                missing_tickers.append(ticker)
+                st.warning(f"❌ {ticker}: 데이터 부족 (길이: {data_length})")
+            elif data_start > target_start + pd.DateOffset(years=1):
+                missing_tickers.append(ticker)
+                st.warning(f"⚠️ {ticker}: 시작일 부족 (목표: {target_start.strftime('%Y-%m')}, 실제: {data_start.strftime('%Y-%m')})")
+                data_info[ticker] = {
+                    'original_data': data,
+                    'start_gap': (data_start - target_start).days,
+                    'needs_filling': True
+                }
+            else:
+                original_data[ticker] = data
+                data_info[ticker] = {
+                    'original_data': data,
+                    'start_gap': 0,
+                    'needs_filling': False
+                }
+                st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
+
+        except Exception as e:
+            missing_tickers.append(ticker)
+            st.error(f"❌ {ticker}: 데이터 로드 실패 - {str(e)}")
+
+    if not fill_gaps or len(missing_tickers) == 0:
+        if len(original_data) > 0:
+            combined_data = pd.concat(original_data.values(), axis=1)
+            combined_data.columns = original_data.keys()
+            return combined_data.resample('ME').last().dropna(), {}
+        else:
+            return None, {}
+
+    # 대체 자산 찾기 및 데이터 결합
+    st.info("🔄 대체 자산 검색 및 데이터 결합 중...")
+
+    substitution_log = {}
+    enhanced_data = original_data.copy()
+
+    # 기존 데이터를 DataFrame으로 결합
+    if len(enhanced_data) > 0:
+        available_data = pd.concat(enhanced_data.values(), axis=1)
+        available_data.columns = enhanced_data.keys()
+    else:
+        available_data = pd.DataFrame()
+
+    for ticker in missing_tickers:
+        st.write(f"🔍 {ticker} 대체 자산 검색 중...")
+
+        substitute_ticker, substitute_data = find_best_substitute(
+            ticker, available_data, start_date, end_date
+        )
+
+        if substitute_ticker and substitute_data is not None:
+            # 대체 데이터 처리
+            if isinstance(substitute_data, pd.Series):
+                substitute_data = substitute_data.to_frame(name=substitute_ticker)
+
+            # 원본 티커 이름으로 컬럼명 변경
+            substitute_df = substitute_data.copy()
+            substitute_df.columns = [ticker]
+
+            enhanced_data[ticker] = substitute_df
+            substitution_log[ticker] = {
+                'substitute': substitute_ticker,
+                'original_start': data_info.get(ticker, {}).get('original_data', pd.DataFrame()).first_valid_index(),
+                'substitute_start': substitute_data.first_valid_index(),
+                'method': 'similar_asset'
+            }
+
+            st.success(f"✅ {ticker} → {substitute_ticker} 대체 완료")
+
+            # available_data 업데이트
+            if len(available_data) == 0:
+                available_data = substitute_df
+            else:
+                available_data = pd.concat([available_data, substitute_df], axis=1)
+        else:
+            st.error(f"❌ {ticker}: 적절한 대체 자산을 찾을 수 없습니다.")
+
+    # 최종 데이터 결합
+    if len(enhanced_data) > 0:
+        final_data = pd.concat(enhanced_data.values(), axis=1)
+        final_data.columns = enhanced_data.keys()
+
+        # 월말 리샘플링
+        monthly_data = final_data.resample('ME').last().dropna()
+
+        st.success(f"🎉 최종 데이터셋 완성: {len(monthly_data.columns)}개 자산, {len(monthly_data)}개월 데이터")
+
+        return monthly_data, substitution_log
+    else:
+        st.error("❌ 사용 가능한 데이터가 없습니다.")
         return None, {}
 
 # 캐시된 데이터 로더 - 수정된 버전
@@ -96,12 +291,124 @@ def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
 
 @st.cache_data
 def load_benchmark_data(ticker, start_date, end_date):
+    """벤치마크 데이터 로드"""
+    try:
+        data = yf.download(ticker, start=start_date, end=end_date)['Close']
+
+        if isinstance(data, pd.Series):
+            data = data.to_frame(name=ticker)
+        elif isinstance(data, pd.DataFrame) and len(data.columns) == 1:
+            data.columns = [ticker]
+
+        monthly_prices = data.resample('ME').last()
+        monthly_prices = monthly_prices.dropna()
+
+        if len(monthly_prices.columns) == 1:
+            return monthly_prices.iloc[:, 0]
+        else:
+            return monthly_prices
+
+    except Exception as e:
+        st.error(f"벤치마크 데이터 로드 중 오류 발생: {str(e)}")
         return None
 
 def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=100):
+    """가중치 조정 함수"""
+    adjusted_weights = weights.copy()
+
+    for iteration in range(max_iterations):
+        adjusted_weights = np.minimum(adjusted_weights, upper_bound)
+        adjusted_weights = np.maximum(adjusted_weights, lower_bound)
+
+        total_weight = adjusted_weights.sum()
+
+        if abs(total_weight - 1.0) < 1e-6:
+            break
+
+        if total_weight > 1.0:
+            excess = total_weight - 1.0
+            adjustable_mask = adjusted_weights > lower_bound
+            if adjustable_mask.sum() > 0:
+                reduction = excess * (adjusted_weights / adjusted_weights[adjustable_mask].sum())
+                reduction[~adjustable_mask] = 0
+                adjusted_weights = adjusted_weights - reduction
+                adjusted_weights = np.maximum(adjusted_weights, lower_bound)
+        else:
+            deficit = 1.0 - total_weight
+            adjustable_mask = adjusted_weights < upper_bound
+            if adjustable_mask.sum() > 0:
+                addition = deficit * (adjusted_weights / adjusted_weights[adjustable_mask].sum())
+                addition[~adjustable_mask] = 0
+                adjusted_weights = adjusted_weights + addition
+                adjusted_weights = np.minimum(adjusted_weights, upper_bound)
+
+    adjusted_weights = adjusted_weights / adjusted_weights.sum()
     return adjusted_weights
 
 def run_backtest(stock_returns, window, top_n_stocks, upper_bound, lower_bound):
+    """백테스팅 실행"""
+    portfolio_returns = []
+    portfolio_dates = []
+    portfolio_composition = {}
+    weights_composition = {}
+    prev_weights = None
+
+    progress_bar = st.progress(0)
+    total_iterations = len(stock_returns) - window
+
+    for i in range(window, len(stock_returns)):
+        progress_bar.progress((i - window) / total_iterations)
+
+        current_date = stock_returns.index[i]
+        past_returns = stock_returns.iloc[i-window:i]
+        momentum_score = (1 + past_returns).prod() - 1
+
+        if i % 1 == 0:  # 매월 리밸런싱
+            current_top_stocks = momentum_score.nlargest(top_n_stocks).index.tolist()
+            portfolio_composition[current_date] = current_top_stocks
+
+            lookback_period = min(36, i)
+            if lookback_period < 12:
+                continue
+
+            historical_returns = stock_returns.iloc[i-lookback_period:i][current_top_stocks]
+            if len(historical_returns) < 12:
+                continue
+
+            cov_matrix = historical_returns.cov()
+            sigma_squared = np.diag(cov_matrix.values)
+            sigma_squared = np.maximum(sigma_squared, 1e-8)
+
+            momentum_scores = momentum_score[current_top_stocks].values
+            momentum_scores = np.maximum(momentum_scores, 0.01)
+
+            inverse_volatility = 1 / np.sqrt(sigma_squared)
+            base_weights = inverse_volatility / inverse_volatility.sum()
+
+            adjusted_weights = base_weights * np.sqrt(momentum_scores)
+            adjusted_weights = adjusted_weights / adjusted_weights.sum()
+
+            final_weights = adjust_weights_to_bounds(adjusted_weights, upper_bound, lower_bound)
+
+            weights_composition[current_date] = dict(zip(current_top_stocks, final_weights))
+            prev_weights = weights_composition[current_date]
+
+        if prev_weights is not None:
+            current_stocks = list(prev_weights.keys())
+            weights_array = np.array(list(prev_weights.values()))
+
+            available_returns = stock_returns.loc[current_date, current_stocks]
+
+            if not available_returns.isna().any():
+                portfolio_return = np.sum(weights_array * available_returns.values)
+                portfolio_returns.append(portfolio_return)
+                portfolio_dates.append(current_date)
+            else:
+                portfolio_returns.append(0.0)
+                portfolio_dates.append(current_date)
+
+    progress_bar.empty()
+
     return pd.Series(portfolio_returns, index=portfolio_dates), weights_composition
 
 def safe_convert_to_float(value):
@@ -117,9 +424,53 @@ def safe_convert_to_float(value):
         return 0.0
 
 def calculate_performance_metrics(returns):
+    """성과 지표 계산"""
+    if len(returns) == 0:
+        return {
+            'total_return': 0.0,
+            'annualized_return': 0.0,
+            'volatility': 0.0,
+            'sharpe_ratio': 0.0,
+            'max_drawdown': 0.0
+        }
+
+    total_return = safe_convert_to_float((1 + returns).prod() - 1)
+    annualized_return = safe_convert_to_float((1 + returns.mean())**12 - 1)
+    volatility = safe_convert_to_float(returns.std() * np.sqrt(12))
+
+    sharpe_ratio = annualized_return / volatility if volatility > 0 else 0.0
+
+    cumulative = (1 + returns).cumprod()
+    running_max = cumulative.expanding().max()
+    drawdown = (cumulative - running_max) / running_max
+    max_drawdown = safe_convert_to_float(drawdown.min())
+
+    return {
+        'total_return': total_return,
+        'annualized_return': annualized_return,
+        'volatility': volatility,
+        'sharpe_ratio': sharpe_ratio,
+        'max_drawdown': max_drawdown
     }
 
 def get_rebalancing_changes(current_weights, previous_weights):
+    """리밸런싱 변화 계산"""
+    all_stocks = set(list(current_weights.keys()) + (list(previous_weights.keys()) if previous_weights else []))
+
+    changes = {}
+    for stock in all_stocks:
+        current_weight = current_weights.get(stock, 0)
+        previous_weight = previous_weights.get(stock, 0) if previous_weights else 0
+
+        change = current_weight - previous_weight
+        if abs(change) > 0.001:
+            changes[stock] = {
+                'previous': previous_weight,
+                'current': current_weight,
+                'change': change,
+                'action': 'INCREASE' if change > 0 else 'DECREASE' if change < 0 else 'HOLD'
+            }
+
     return changes
 
 # 메인 앱

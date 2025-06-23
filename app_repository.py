@@ -524,7 +524,7 @@ def main():
         "종목 티커 (쉼표로 구분)",
         value=", ".join(default_tickers[:25]),
         help="예시: SPY, QQQ, XLK",
-        height=60
+        height=80
     )
 
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]

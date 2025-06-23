@@ -511,17 +511,6 @@ def main():
 
     st.markdown("---")
 
-
-
-    # 사이드바 상단 여백 줄이기 위한 CSS 삽입
-    st.markdown("""
-        <style>
-        /* 사이드바 상단 여백 최소화 */
-        section[data-testid="stSidebar"] div:first-child {
-            padding-top: 0.5rem;
-        }
-        </style>
-    """, unsafe_allow_html=True)    
     # 사이드바 설정
     st.sidebar.header("📊 유니버스 설정")
 
@@ -535,7 +524,7 @@ def main():
         "종목 티커 (쉼표로 구분)",
         value=", ".join(default_tickers[:25]),
         help="예시: SPY, QQQ, XLK",
-        height=80
+        height=60
     )
 
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]

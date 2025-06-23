@@ -544,8 +544,10 @@ def main():
                 text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
                 z-index: 1;
                 position: relative;
-                font-family: 'Arial', sans-serif;
-            ">
+                font-family: 'Arial', sans-serif;">
+                👇
+                하<br>
+                단<br>
                 👇
             </div>
         </div>

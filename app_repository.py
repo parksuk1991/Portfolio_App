@@ -477,6 +477,7 @@ def get_rebalancing_changes(current_weights, previous_weights):
 def main():
     st.title("📈 Portfolio Backtesting App")
     st.markdown("##### 만든이: 박석")
+    
 
     st.markdown(
         '<div style="text-align: right; margin-bottom: 10px;">'
@@ -524,7 +525,7 @@ def main():
         "종목 티커 (쉼표로 구분)",
         value=", ".join(default_tickers[:25]),
         help="예시: SPY, QQQ, XLK",
-        height=80
+        height=60
     )
 
     tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]

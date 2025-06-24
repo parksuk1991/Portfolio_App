@@ -867,7 +867,7 @@ def main():
                         f"{len(tickers)}개",
                         f"{top_n_stocks}개",
                         "매월",
-                        f"{lower_bound:.1%} ~ {upper_bound:.1%}"
+                        f"{lower_bound:.1%} ~ {upper_bound:.1%}",
                         f"{portfolio_turnover:.1%}"
                     ]
                 })

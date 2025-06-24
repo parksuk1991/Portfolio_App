@@ -326,6 +326,10 @@ def fill_missing_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
         
         if substitute_ticker and substitute_data is not None:
             # 대체 데이터 처리
+            if isinstance(substitute_data, pd.Series):
+                substitute_data = substitute_data.to_frame(name=substitute_ticker)
+
+            
             substitute_df = substitute_data.to_frame(name=ticker)
             enhanced_data[ticker] = substitute_df
             

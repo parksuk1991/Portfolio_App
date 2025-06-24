@@ -32,6 +32,13 @@ BENCHMARK_NAMES = {
     'ACWI': 'MSCI ACWI 지수'
 }
 
+# 벤치마크 옵션 (표시용)
+BENCHMARK_OPTIONS = {
+    'S&P 500 지수': 'SPY',
+    'Nasdaq 100 지수': 'QQQ',
+    'MSCI ACWI 지수': 'ACWI'
+}
+
 # 유사 자산 매핑
 SIMILAR_ASSETS_MAP = {
     # 섹터 ETF 매핑

@@ -156,8 +156,8 @@ def find_best_substitute_dynamic(target_ticker, available_data, start_date, end_
             else:
                 correlation_score = 0.5  # 기본값
             
-            # 종합 점수 (데이터 길이 70% + 상관관계 30%)
-            total_score = data_length_score * 0.7 + correlation_score * 0.3
+            # 종합 점수 (데이터 길이 20% + 상관관계 80%)
+            total_score = data_length_score * 0.2 + correlation_score * 0.8
             
             if total_score > best_score:
                 best_score = total_score
@@ -355,37 +355,6 @@ def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=1
     adjusted_weights = adjusted_weights / adjusted_weights.sum()
     return adjusted_weights
 
-# 3. 포트폴리오 회전율 계산 함수
-def calculate_portfolio_turnover(weights_composition):
-    """포트폴리오의 월평균 회전율 계산"""
-    if len(weights_composition) < 2:
-        return 0.0
-    
-    dates = sorted(weights_composition.keys())
-    turnovers = []
-    
-    for i in range(1, len(dates)):
-        prev_weights = weights_composition[dates[i-1]]
-        curr_weights = weights_composition[dates[i]]
-        
-        # 모든 자산 목록
-        all_assets = set(list(prev_weights.keys()) + list(curr_weights.keys()))
-        
-        # 가중치 변화량 계산
-        total_change = 0
-        for asset in all_assets:
-            prev_weight = prev_weights.get(asset, 0)
-            curr_weight = curr_weights.get(asset, 0)
-            total_change += abs(curr_weight - prev_weight)
-        
-        # 회전율 = 가중치 변화량의 합 / 2
-        turnover = total_change / 2
-        turnovers.append(turnover)
-    
-    # 월평균 회전율
-    avg_monthly_turnover = np.mean(turnovers) if turnovers else 0.0
-    return safe_convert_to_float(avg_monthly_turnover)
-
 
 def run_backtest(stock_returns, window, top_n_stocks, upper_bound, lower_bound):
     """백테스팅 실행"""
@@ -465,24 +434,7 @@ def safe_convert_to_float(value):
     except (ValueError, TypeError, AttributeError):
         return 0.0
 
-# 2. 추적오차 계산 함수
-def calculate_tracking_error(portfolio_returns, benchmark_returns):
-    """포트폴리오의 추적오차 계산"""
-    # 공통 기간 맞추기
-    common_index = portfolio_returns.index.intersection(benchmark_returns.index)
-    if len(common_index) == 0:
-        return 0.0
-    
-    port_aligned = portfolio_returns.loc[common_index]
-    bench_aligned = benchmark_returns.loc[common_index]
-    
-    # 초과수익률
-    excess_returns = port_aligned - bench_aligned
-    
-    # 추적오차 (연환산)
-    tracking_error = excess_returns.std() * np.sqrt(12)
-    
-    return safe_convert_to_float(tracking_error)
+
 
 
 
@@ -509,18 +461,13 @@ def calculate_performance_metrics(returns):
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = safe_convert_to_float(drawdown.min())
 
-    #추적오차 계산
-    tracking_error = 0.0
-    if benchmark_returns is not None:
-        tracking_error = calculate_tracking_error(returns, benchmark_returns)
 
     return {
         'total_return': total_return,
         'annualized_return': annualized_return,
         'volatility': volatility,
         'sharpe_ratio': sharpe_ratio,
-        'max_drawdown': max_drawdown,
-        'tracking_error': tracking_error
+        'max_drawdown': max_drawdown
     }
 
 def get_rebalancing_changes(current_weights, previous_weights):
@@ -873,7 +820,6 @@ def main():
 
             with col2:
                 st.subheader("📋 백테스팅 정보")
-                monthly_turnover = calculate_portfolio_turnover(weights_composition)
                 info_df = pd.DataFrame({
                     '항목': ['분석 기간', '총 종목 수', '선택 종목 수', '리밸런싱', '가중치 범위'],
                     '값': [
@@ -882,7 +828,6 @@ def main():
                         f"{top_n_stocks}개",
                         "매월",
                         f"{lower_bound:.1%} ~ {upper_bound:.1%}"
-                        f"{monthly_turnover:.1%}"
                     ]
                 })
                 st.dataframe(info_df, use_container_width=True, hide_index=True)

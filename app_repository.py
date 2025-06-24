@@ -349,7 +349,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         available_data = pd.DataFrame()
 
     for ticker in missing_tickers:
-        st.write(f"🔍 {ticker} 대체 자산 검색 중...")
+        
 
         substitute_ticker, substitute_data = find_best_substitute_enhanced(
             ticker, available_data, start_date, end_date
@@ -372,7 +372,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                 'method': 'similar_asset'
             }
 
-            st.success(f"✅ {ticker} → {substitute_ticker} 대체 완료")
+            
 
             # available_data 업데이트
             if len(available_data) == 0:

@@ -791,7 +791,7 @@ def main():
     
     tickers_input = st.sidebar.text_area(
         "종목 티커 (쉼표로 구분)",
-        value=", ".join(default_tickers[:25]),
+        value=", ".join(default_tickers[:35]),
         help="예시: SPY, QQQ, XLK",
         height=70
     )

@@ -95,71 +95,83 @@ def get_asset_classification(ticker):
     else:
         return 'broad_market'
 
-def find_best_substitute(target_ticker, available_data, start_date, end_date, min_correlation=0.7):
-    """최적의 대체 자산 찾기"""
-
-    # 1단계: 사전 정의된 유사 자산 확인
-    if target_ticker in SIMILAR_ASSETS_MAP:
-        candidates = SIMILAR_ASSETS_MAP[target_ticker]
-
-        for candidate in candidates:
-            try:
-                candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
-                if len(candidate_data) > 252:  # 최소 1년 데이터
-                    # 기존 데이터와 상관관계 확인 (겹치는 기간이 있다면)
-                    if candidate in available_data.columns:
-                        overlap_data = available_data[[candidate]].dropna()
-                        if len(overlap_data) > 50:  # 충분히 겹치는 데이터
-                            return candidate, candidate_data
-                    else:
-                        return candidate, candidate_data
-            except:
-                continue
-
-    # 2단계: 자산 분류에 따른 대체 자산
-    asset_class = get_asset_classification(target_ticker)
-    fallback_candidates = FALLBACK_ASSETS.get(asset_class, FALLBACK_ASSETS['broad_market'])
-
+# 1. 동적 대체 자산 찾기 함수 (기존 find_best_substitute 함수 대체)
+def find_best_substitute_dynamic(target_ticker, available_data, start_date, end_date, min_correlation=0.7):
+    """yfinance에서 동적으로 최적의 대체 자산 찾기"""
+    
+    # 검색할 후보 자산 풀 (더 광범위한 ETF 리스트)
+    candidate_pool = [
+        # 대형주 ETF
+        'SPY', 'QQQ', 'VTI', 'IVV', 'VOO', 'VUG', 'VTV', 'SPYG', 'SPYV',
+        # 섹터 ETF
+        'XLK', 'XLF', 'XLV', 'XLE', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLC',
+        'VGT', 'VFH', 'VHT', 'VDE', 'VIS', 'VCR', 'VDC', 'VPU', 'VAW', 'VOX',
+        # 스타일 및 팩터 ETF
+        'VYM', 'DVY', 'USMV', 'MTUM', 'RSP', 'EQL', 'SPLV', 'QUAL', 'SIZE',
+        # 국제 ETF
+        'EFA', 'VEA', 'EEM', 'VWO', 'IEFA', 'IEMG', 'ACWI', 'VXUS', 'IXUS',
+        # 채권 ETF
+        'AGG', 'BND', 'TLT', 'IEF', 'SHY', 'LQD', 'HYG', 'JNK',
+        # 기타
+        'GLD', 'SLV', 'VNQ', 'REZ', 'IYR'
+    ]
+    
+    # 타겟 티커를 후보에서 제외
+    candidate_pool = [c for c in candidate_pool if c != target_ticker]
+    
     best_candidate = None
     best_data = None
-    best_correlation = 0
-
-    for candidate in fallback_candidates:
-        if candidate == target_ticker:
-            continue
-
+    best_score = 0
+    
+    st.info(f"🔍 {target_ticker}의 최적 대체 자산을 {len(candidate_pool)}개 후보에서 검색 중...")
+    
+    for i, candidate in enumerate(candidate_pool):
         try:
-            candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
-            if len(candidate_data) > 252:  # 최소 1년 데이터
-
-                # 기존 포트폴리오 자산들과의 상관관계 확인
-                if len(available_data.columns) > 0:
-                    # 공통 기간에서 상관관계 계산
-                    common_period = candidate_data.index.intersection(available_data.index)
-                    if len(common_period) > 50:
-                        candidate_returns = candidate_data.loc[common_period].pct_change().dropna()
-                        portfolio_returns = available_data.loc[common_period].mean(axis=1).pct_change().dropna()
-
-                        # 공통 인덱스로 정렬
-                        common_idx = candidate_returns.index.intersection(portfolio_returns.index)
-                        if len(common_idx) > 30:
-                            corr, _ = pearsonr(candidate_returns.loc[common_idx],
+            if i % 10 == 0:  # 진행상황 표시
+                st.write(f"검색 진행률: {i}/{len(candidate_pool)} ({i/len(candidate_pool)*100:.0f}%)")
+            
+            candidate_data = yf.download(candidate, start=start_date, end=end_date, progress=False)['Close']
+            if len(candidate_data.dropna()) < 252:  # 최소 1년 데이터
+                continue
+                
+            # 점수 계산 (데이터 길이 + 상관관계)
+            data_length_score = min(len(candidate_data.dropna()) / 2520, 1.0)  # 10년 기준으로 정규화
+            
+            correlation_score = 0
+            if len(available_data.columns) > 0:
+                # 기존 포트폴리오와의 상관관계 계산
+                common_period = candidate_data.index.intersection(available_data.index)
+                if len(common_period) > 50:
+                    candidate_returns = candidate_data.loc[common_period].pct_change().dropna()
+                    portfolio_returns = available_data.loc[common_period].mean(axis=1).pct_change().dropna()
+                    
+                    common_idx = candidate_returns.index.intersection(portfolio_returns.index)
+                    if len(common_idx) > 30:
+                        try:
+                            corr, _ = pearsonr(candidate_returns.loc[common_idx], 
                                              portfolio_returns.loc[common_idx])
-
-                            if corr > best_correlation and corr > min_correlation:
-                                best_correlation = corr
-                                best_candidate = candidate
-                                best_data = candidate_data
-
-                # 첫 번째 후보가 없다면 일단 선택
-                if best_candidate is None:
-                    best_candidate = candidate
-                    best_data = candidate_data
-                    break
-
+                            correlation_score = max(0, corr)  # 음의 상관관계는 0으로 처리
+                        except:
+                            correlation_score = 0
+            else:
+                correlation_score = 0.5  # 기본값
+            
+            # 종합 점수 (데이터 길이 70% + 상관관계 30%)
+            total_score = data_length_score * 0.7 + correlation_score * 0.3
+            
+            if total_score > best_score:
+                best_score = total_score
+                best_candidate = candidate
+                best_data = candidate_data
+                
         except Exception as e:
             continue
-
+    
+    if best_candidate:
+        st.success(f"✅ 최적 대체 자산 발견: {target_ticker} → {best_candidate} (점수: {best_score:.3f})")
+    else:
+        st.warning(f"⚠️ {target_ticker}의 적절한 대체 자산을 찾지 못했습니다.")
+    
     return best_candidate, best_data
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
@@ -235,7 +247,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     for ticker in missing_tickers:
         st.write(f"🔍 {ticker} 대체 자산 검색 중...")
 
-        substitute_ticker, substitute_data = find_best_substitute(
+        substitute_ticker, substitute_data = find_best_substitute_dynamic(
             ticker, available_data, start_date, end_date
         )
 
@@ -343,6 +355,38 @@ def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=1
     adjusted_weights = adjusted_weights / adjusted_weights.sum()
     return adjusted_weights
 
+# 3. 포트폴리오 회전율 계산 함수
+def calculate_portfolio_turnover(weights_composition):
+    """포트폴리오의 월평균 회전율 계산"""
+    if len(weights_composition) < 2:
+        return 0.0
+    
+    dates = sorted(weights_composition.keys())
+    turnovers = []
+    
+    for i in range(1, len(dates)):
+        prev_weights = weights_composition[dates[i-1]]
+        curr_weights = weights_composition[dates[i]]
+        
+        # 모든 자산 목록
+        all_assets = set(list(prev_weights.keys()) + list(curr_weights.keys()))
+        
+        # 가중치 변화량 계산
+        total_change = 0
+        for asset in all_assets:
+            prev_weight = prev_weights.get(asset, 0)
+            curr_weight = curr_weights.get(asset, 0)
+            total_change += abs(curr_weight - prev_weight)
+        
+        # 회전율 = 가중치 변화량의 합 / 2
+        turnover = total_change / 2
+        turnovers.append(turnover)
+    
+    # 월평균 회전율
+    avg_monthly_turnover = np.mean(turnovers) if turnovers else 0.0
+    return safe_convert_to_float(avg_monthly_turnover)
+
+
 def run_backtest(stock_returns, window, top_n_stocks, upper_bound, lower_bound):
     """백테스팅 실행"""
     portfolio_returns = []
@@ -421,6 +465,27 @@ def safe_convert_to_float(value):
     except (ValueError, TypeError, AttributeError):
         return 0.0
 
+# 2. 추적오차 계산 함수
+def calculate_tracking_error(portfolio_returns, benchmark_returns):
+    """포트폴리오의 추적오차 계산"""
+    # 공통 기간 맞추기
+    common_index = portfolio_returns.index.intersection(benchmark_returns.index)
+    if len(common_index) == 0:
+        return 0.0
+    
+    port_aligned = portfolio_returns.loc[common_index]
+    bench_aligned = benchmark_returns.loc[common_index]
+    
+    # 초과수익률
+    excess_returns = port_aligned - bench_aligned
+    
+    # 추적오차 (연환산)
+    tracking_error = excess_returns.std() * np.sqrt(12)
+    
+    return safe_convert_to_float(tracking_error)
+
+
+
 def calculate_performance_metrics(returns):
     """성과 지표 계산"""
     if len(returns) == 0:
@@ -429,7 +494,8 @@ def calculate_performance_metrics(returns):
             'annualized_return': 0.0,
             'volatility': 0.0,
             'sharpe_ratio': 0.0,
-            'max_drawdown': 0.0
+            'max_drawdown': 0.0,
+            'tracking_error': 0.0
         }
 
     total_return = safe_convert_to_float((1 + returns).prod() - 1)
@@ -443,12 +509,18 @@ def calculate_performance_metrics(returns):
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = safe_convert_to_float(drawdown.min())
 
+    #추적오차 계산
+    tracking_error = 0.0
+    if benchmark_returns is not None:
+        tracking_error = calculate_tracking_error(returns, benchmark_returns)
+
     return {
         'total_return': total_return,
         'annualized_return': annualized_return,
         'volatility': volatility,
         'sharpe_ratio': sharpe_ratio,
-        'max_drawdown': max_drawdown
+        'max_drawdown': max_drawdown,
+        'tracking_error': tracking_error
     }
 
 def get_rebalancing_changes(current_weights, previous_weights):
@@ -470,6 +542,82 @@ def get_rebalancing_changes(current_weights, previous_weights):
             }
 
     return changes
+
+# 4. 연도별/월별 성과 차트 생성 함수
+def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_name):
+    """연도별 및 월별 성과 비교 차트 생성"""
+    
+    # 공통 기간 데이터
+    common_index = portfolio_returns.index.intersection(benchmark_returns.index)
+    port_aligned = portfolio_returns.loc[common_index]
+    bench_aligned = benchmark_returns.loc[common_index]
+    
+    # 연도별 성과
+    yearly_port = port_aligned.groupby(port_aligned.index.year).apply(lambda x: (1 + x).prod() - 1)
+    yearly_bench = bench_aligned.groupby(bench_aligned.index.year).apply(lambda x: (1 + x).prod() - 1)
+    
+    # 월별 성과 (최근 24개월)
+    monthly_port = port_aligned.tail(24)
+    monthly_bench = bench_aligned.tail(24)
+    
+    # 연도별 성과 차트
+    fig_yearly = go.Figure()
+    
+    years = yearly_port.index
+    fig_yearly.add_trace(go.Bar(
+        x=years,
+        y=yearly_port * 100,
+        name='포트폴리오',
+        marker_color='deeppink',
+        opacity=0.7
+    ))
+    fig_yearly.add_trace(go.Bar(
+        x=years,
+        y=yearly_bench * 100,
+        name=benchmark_name,
+        marker_color='royalblue',
+        opacity=0.7
+    ))
+    
+    fig_yearly.update_layout(
+        title="연도별 성과 비교",
+        xaxis_title="연도",
+        yaxis_title="수익률 (%)",
+        barmode='group',
+        template="plotly_dark",
+        height=400
+    )
+    
+    # 월별 성과 차트
+    fig_monthly = go.Figure()
+    
+    months = [f"{d.year}-{d.month:02d}" for d in monthly_port.index]
+    fig_monthly.add_trace(go.Bar(
+        x=months,
+        y=monthly_port * 100,
+        name='포트폴리오',
+        marker_color='deeppink',
+        opacity=0.7
+    ))
+    fig_monthly.add_trace(go.Bar(
+        x=months,
+        y=monthly_bench * 100,
+        name=benchmark_name,
+        marker_color='royalblue',
+        opacity=0.7
+    ))
+    
+    fig_monthly.update_layout(
+        title=f"월별 성과 비교 (최근 {len(monthly_port)}개월)",
+        xaxis_title="월",
+        yaxis_title="수익률 (%)",
+        barmode='group',
+        template="plotly_dark",
+        height=400,
+        xaxis=dict(tickangle=45)
+    )
+    
+    return fig_yearly, fig_monthly
 
 # 메인 앱
 def main():
@@ -725,6 +873,7 @@ def main():
 
             with col2:
                 st.subheader("📋 백테스팅 정보")
+                monthly_turnover = calculate_portfolio_turnover(weights_composition)
                 info_df = pd.DataFrame({
                     '항목': ['분석 기간', '총 종목 수', '선택 종목 수', '리밸런싱', '가중치 범위'],
                     '값': [
@@ -733,6 +882,7 @@ def main():
                         f"{top_n_stocks}개",
                         "매월",
                         f"{lower_bound:.1%} ~ {upper_bound:.1%}"
+                        f"{monthly_turnover:.1%}"
                     ]
                 })
                 st.dataframe(info_df, use_container_width=True, hide_index=True)
@@ -948,6 +1098,25 @@ def main():
                 template="plotly_dark"
             )
             st.plotly_chart(fig4, use_container_width=True)
+
+
+
+            
+            # 연도별 및 월별 성과 차트
+            st.subheader("📅 연도별 및 월별 성과 비교")
+
+            fig_yearly, fig_monthly = create_performance_charts(
+                portfolio_returns_aligned, benchmark_returns_aligned, benchmark_name
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.plotly_chart(fig_yearly, use_container_width=True)
+            with col2:
+                st.plotly_chart(fig_monthly, use_container_width=True)
+
+
+
 
             # 포트폴리오 구성 히스토리
             st.subheader("📑 포트폴리오 구성 히스토리")

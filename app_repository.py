@@ -843,7 +843,7 @@ def main():
                         f"{portfolio_metrics['annualized_return']:.2%}",
                         f"{portfolio_metrics['volatility']:.2%}",
                         f"{portfolio_metrics['sharpe_ratio']:.2f}",
-                        f"{portfolio_metrics['max_drawdown']:.2%}"
+                        f"{portfolio_metrics['max_drawdown']:.2%}",
                         f"{portfolio_metrics['tracking_error']:.2%}"
                     ],
                     f'{benchmark_name}': [
@@ -851,7 +851,7 @@ def main():
                         f"{benchmark_metrics['annualized_return']:.2%}",
                         f"{benchmark_metrics['volatility']:.2%}",
                         f"{benchmark_metrics['sharpe_ratio']:.2f}",
-                        f"{benchmark_metrics['max_drawdown']:.2%}"
+                        f"{benchmark_metrics['max_drawdown']:.2%}",
                         "N/A"
                     ]
                 }, index=['총 수익률', '연평균 수익률', '연변동성', '샤프 비율', '최대 낙폭', '추적오차'])

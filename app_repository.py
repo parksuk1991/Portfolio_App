@@ -195,7 +195,6 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
             if data_completeness < 0.7:  # 70% 이상 데이터 완전성
                 continue
             
-            # 상관관계 계산 (기존 포트폴리오 자산들과)
             correlation_scores = []
             
             if len(available_data.columns) > 0:

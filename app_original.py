@@ -2,6 +2,7 @@
 """APP_repository.ipynb
 """
 
+
 # Enhanced app.py with data gap filling functionality
 import streamlit as st
 import yfinance as yf
@@ -286,7 +287,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
 def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
     """유니버스 데이터"""
     return fill_missing_data(tickers, start_date, end_date, fill_gaps)
-
+    
 @st.cache_data
 def load_benchmark_data(ticker, start_date, end_date):
     """벤치마크 데이터"""
@@ -342,6 +343,7 @@ def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=1
 
     adjusted_weights = adjusted_weights / adjusted_weights.sum()
     return adjusted_weights
+
 
 def run_backtest(stock_returns, window, top_n_stocks, upper_bound, lower_bound):
     """백테스팅 실행"""
@@ -421,6 +423,10 @@ def safe_convert_to_float(value):
     except (ValueError, TypeError, AttributeError):
         return 0.0
 
+
+
+
+
 def calculate_performance_metrics(returns):
     """성과 지표 계산"""
     if len(returns) == 0:
@@ -429,7 +435,8 @@ def calculate_performance_metrics(returns):
             'annualized_return': 0.0,
             'volatility': 0.0,
             'sharpe_ratio': 0.0,
-            'max_drawdown': 0.0
+            'max_drawdown': 0.0,
+            'tracking_error': 0.0
         }
 
     total_return = safe_convert_to_float((1 + returns).prod() - 1)
@@ -442,6 +449,7 @@ def calculate_performance_metrics(returns):
     running_max = cumulative.expanding().max()
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = safe_convert_to_float(drawdown.min())
+
 
     return {
         'total_return': total_return,
@@ -470,6 +478,82 @@ def get_rebalancing_changes(current_weights, previous_weights):
             }
 
     return changes
+
+# 4. 연도별/월별 성과 차트 생성 함수
+def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_name):
+    """연도별 및 월별 성과 비교 차트 생성"""
+    
+    # 공통 기간 데이터
+    common_index = portfolio_returns.index.intersection(benchmark_returns.index)
+    port_aligned = portfolio_returns.loc[common_index]
+    bench_aligned = benchmark_returns.loc[common_index]
+    
+    # 연도별 성과
+    yearly_port = port_aligned.groupby(port_aligned.index.year).apply(lambda x: (1 + x).prod() - 1)
+    yearly_bench = bench_aligned.groupby(bench_aligned.index.year).apply(lambda x: (1 + x).prod() - 1)
+    
+    # 월별 성과 (최근 24개월)
+    monthly_port = port_aligned.tail(24)
+    monthly_bench = bench_aligned.tail(24)
+    
+    # 연도별 성과 차트
+    fig_yearly = go.Figure()
+    
+    years = yearly_port.index
+    fig_yearly.add_trace(go.Bar(
+        x=years,
+        y=yearly_port * 100,
+        name='포트폴리오',
+        marker_color='deeppink',
+        opacity=0.7
+    ))
+    fig_yearly.add_trace(go.Bar(
+        x=years,
+        y=yearly_bench * 100,
+        name=benchmark_name,
+        marker_color='royalblue',
+        opacity=0.7
+    ))
+    
+    fig_yearly.update_layout(
+        title="연도별",
+        xaxis_title="연도",
+        yaxis_title="수익률 (%)",
+        barmode='group',
+        template="plotly_dark",
+        height=400
+    )
+    
+    # 월별 성과 차트
+    fig_monthly = go.Figure()
+    
+    months = [f"{d.year}-{d.month:02d}" for d in monthly_port.index]
+    fig_monthly.add_trace(go.Bar(
+        x=months,
+        y=monthly_port * 100,
+        name='포트폴리오',
+        marker_color='deeppink',
+        opacity=0.7
+    ))
+    fig_monthly.add_trace(go.Bar(
+        x=months,
+        y=monthly_bench * 100,
+        name=benchmark_name,
+        marker_color='royalblue',
+        opacity=0.7
+    ))
+    
+    fig_monthly.update_layout(
+        title=f"월별 (최근 {len(monthly_port)}개월)",
+        xaxis_title="월",
+        yaxis_title="수익률 (%)",
+        barmode='group',
+        template="plotly_dark",
+        height=400,
+        xaxis=dict(tickangle=45)
+    )
+    
+    return fig_yearly, fig_monthly
 
 # 메인 앱
 def main():
@@ -794,7 +878,7 @@ def main():
                             # 리밸런싱 변화 시각화
                             stocks = list(changes.keys())
                             changes_values = [changes[stock]['change'] for stock in stocks]
-                            colors = ['green' if x > 0 else 'red' for x in changes_values]
+                            colors = ['deeppink' if x > 0 else 'royalblue' for x in changes_values]
 
                             fig_rebal = go.Figure(data=[
                                 go.Bar(x=stocks, y=[x*100 for x in changes_values],
@@ -948,6 +1032,25 @@ def main():
                 template="plotly_dark"
             )
             st.plotly_chart(fig4, use_container_width=True)
+
+
+
+            
+            # 연도별 및 월별 성과 차트
+            st.subheader("📅 연도별 및 월별 성과")
+
+            fig_yearly, fig_monthly = create_performance_charts(
+                portfolio_returns_aligned, benchmark_returns_aligned, benchmark_name
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.plotly_chart(fig_yearly, use_container_width=True)
+            with col2:
+                st.plotly_chart(fig_monthly, use_container_width=True)
+
+
+
 
             # 포트폴리오 구성 히스토리
             st.subheader("📑 포트폴리오 구성 히스토리")

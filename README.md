@@ -12,7 +12,7 @@ Version.2025.06
 그 이유는 모멘텀 윈도우(window), lookback period, 그리고 최소 데이터 요구조건 때문입니다.
 
 2) 핵심 코드 위치
-for i in range(window, len(stock_returns)):
+for i in range(window, len(stock_returns)):	
 → 데이터의 첫 window(예: 6개월) 구간은 모멘텀 계산을 위해 사용되고, 실제 포트폴리오 수익률은 그 이후부터 계산됩니다.
 lookback_period = min(36, i)
 → 최대 36개월(3년)까지 과거 데이터를 사용하지만, 데이터가 부족하면 현재 인덱스(i)만큼만 사용합니다.

@@ -119,70 +119,55 @@ EXTENDED_ASSET_POOL = {
     'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA']
 }
 
+# 카테고리별 우선순위 설정 (같은 카테고리 내에서만 대체)
+CATEGORY_PRIORITY = {
+    'large_cap_us': ['VOO', 'IVV', 'VTI', 'SPY', 'ITOT', 'SPTM', 'SPLG'],
+    'large_cap_growth': ['VUG', 'IVW', 'QQQ', 'MGK', 'SPYG', 'VONG', 'IWF'],
+    'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
+    'mid_cap': ['VO', 'IJH', 'MDY', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
+    'small_cap': ['VB', 'IJR', 'IWM', 'VTWO', 'SPSM', 'VBR', 'IWN'],
+    'international_dev': ['VEA', 'IEFA', 'EFA', 'ACWX', 'IDEV', 'SCHF', 'VTEB'],
+    'international_em': ['VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
+    'technology': ['VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV'],
+    'healthcare': ['VHT', 'XLV', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
+    'financials': ['VFH', 'XLF', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
+    'energy': ['VDE', 'XLE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
+    'materials': ['VAW', 'XLB', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB'],
+    'industrials': ['VIS', 'XLI', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN'],
+    'utilities': ['VPU', 'XLU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU'],
+    'consumer_disc': ['VCR', 'XLY', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ'],
+    'consumer_staples': ['VDC', 'XLP', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
+    'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF'],
+    'bonds': ['BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA'],
+    'commodities': ['DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA']
+}
+
 def get_enhanced_asset_classification(ticker):
     """향상된 자산 분류 - 더 세분화된 카테고리"""
     
-    # 각 카테고리별 ETF 매핑
-    classifications = {
-        'large_cap_us': ['SPY', 'VOO', 'IVV', 'VTI', 'ITOT', 'SPTM', 'SPLG'],
-        'large_cap_growth': ['QQQ', 'VUG', 'IVW', 'MGK', 'SPYG', 'VONG', 'IWF'],
-        'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
-        'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
-        'healthcare': ['XLV', 'VHT', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
-        'financials': ['XLF', 'VFH', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
-        'energy': ['XLE', 'VDE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
-        'materials': ['XLB', 'VAW', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB'],
-        'industrials': ['XLI', 'VIS', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN'],
-        'utilities': ['XLU', 'VPU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU'],
-        'consumer_disc': ['XLY', 'VCR', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ'],
-        'consumer_staples': ['XLP', 'VDC', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
-        'international_dev': ['EFA', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
-        'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
-        'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF']
-    }
-    
-    for category, tickers in classifications.items():
+    for category, tickers in EXTENDED_ASSET_POOL.items():
         if ticker in tickers:
             return category
     
     return 'large_cap_us'  # 기본값
 
-def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.5):
-    """향상된 대체 자산 선택 - 더 큰 풀에서 상관관계 기반 선택"""
+def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.3):
+    """향상된 대체 자산 선택 - 동일 카테고리 내에서만 선택"""
     
-    # 1단계: 동일 카테고리 내 대체 자산 찾기
+    # 1단계: 타겟 티커의 카테고리 확인
     asset_category = get_enhanced_asset_classification(target_ticker)
-    primary_candidates = EXTENDED_ASSET_POOL.get(asset_category, [])
     
-    # 2단계: 관련 카테고리 확장
-    related_categories = {
-        'large_cap_growth': ['technology', 'large_cap_us'],
-        'large_cap_value': ['financials', 'large_cap_us'],
-        'technology': ['large_cap_growth', 'large_cap_us'],
-        'healthcare': ['large_cap_us', 'consumer_staples'],
-        'financials': ['large_cap_value', 'large_cap_us'],
-        'energy': ['materials', 'large_cap_us'],
-        'materials': ['energy', 'industrials'],
-        'industrials': ['materials', 'large_cap_us'],
-        'utilities': ['consumer_staples', 'large_cap_us'],
-        'consumer_disc': ['large_cap_growth', 'technology'],
-        'consumer_staples': ['utilities', 'healthcare'],
-        'international_dev': ['large_cap_us', 'international_em'],
-        'international_em': ['international_dev', 'large_cap_us'],
-        'real_estate': ['utilities', 'large_cap_us']
-    }
+    # 2단계: 동일 카테고리 내 후보 자산들 (우선순위 순서)
+    category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
     
-    # 확장된 후보 리스트
-    extended_candidates = primary_candidates.copy()
-    for related_cat in related_categories.get(asset_category, []):
-        extended_candidates.extend(EXTENDED_ASSET_POOL.get(related_cat, []))
+    # 타겟 티커 제외
+    candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
     
-    # 중복 제거 및 타겟 티커 제외
-    candidates = list(set(extended_candidates))
-    if target_ticker in candidates:
-        candidates.remove(target_ticker)
+    if not candidates:
+        print(f"Warning: No substitute candidates found for {target_ticker} in category {asset_category}")
+        return None, None
     
-    # 3단계: 상관관계 기반 최적 대체 자산 선택
+    # 3단계: 각 후보의 데이터 품질 및 적합성 평가
     best_candidates = []
     
     for candidate in candidates:
@@ -195,12 +180,12 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 
             candidate_prices = candidate_data['Close'] if 'Close' in candidate_data.columns else candidate_data
             
-            if len(candidate_prices) < 252:  # 최소 1년 데이터 필요
+            if len(candidate_prices) < 100:  # 최소 데이터 길이 요구사항 완화
                 continue
             
             # 데이터 품질 검사
             data_completeness = candidate_prices.count() / len(candidate_prices)
-            if data_completeness < 0.8:  # 80% 이상 데이터 완전성
+            if data_completeness < 0.7:  # 70% 이상 데이터 완전성
                 continue
             
             # 상관관계 계산 (기존 포트폴리오 자산들과)
@@ -210,7 +195,7 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 # 공통 기간 찾기
                 common_period = candidate_prices.index.intersection(available_data.index)
                 
-                if len(common_period) > 100:  # 충분한 겹치는 기간
+                if len(common_period) > 50:  # 최소 겹치는 기간 완화
                     candidate_returns = candidate_prices.loc[common_period].pct_change().dropna()
                     
                     for existing_asset in available_data.columns:
@@ -219,14 +204,14 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                         # 공통 인덱스
                         common_idx = candidate_returns.index.intersection(existing_returns.index)
                         
-                        if len(common_idx) > 50:
+                        if len(common_idx) > 30:  # 최소 공통 데이터 완화
                             try:
                                 corr, p_value = pearsonr(
                                     candidate_returns.loc[common_idx].fillna(0),
                                     existing_returns.loc[common_idx].fillna(0)
                                 )
                                 
-                                if not np.isnan(corr) and p_value < 0.05:  # 통계적 유의성
+                                if not np.isnan(corr):
                                     correlation_scores.append(abs(corr))
                             except:
                                 continue
@@ -234,11 +219,14 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
             # 평균 상관관계 계산
             avg_correlation = np.mean(correlation_scores) if correlation_scores else 0
             
-            # 데이터 길이 점수 (더 긴 데이터 선호)
-            length_score = min(len(candidate_prices) / 2520, 1.0)  # 10년 기준 정규화
+            # 데이터 길이 점수
+            length_score = min(len(candidate_prices) / 1000, 1.0)  # 4년 기준 정규화
             
-            # 복합 점수 계산
-            composite_score = (avg_correlation * 0.6) + (length_score * 0.2) + (data_completeness * 0.2)
+            # 우선순위 점수 (리스트에서 앞에 있을수록 높은 점수)
+            priority_score = (len(candidates) - candidates.index(candidate)) / len(candidates)
+            
+            # 복합 점수 계산 (우선순위를 더 중요하게 반영)
+            composite_score = (priority_score * 0.4) + (length_score * 0.3) + (data_completeness * 0.2) + (avg_correlation * 0.1)
             
             best_candidates.append({
                 'ticker': candidate,
@@ -246,10 +234,12 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 'correlation': avg_correlation,
                 'length_score': length_score,
                 'completeness': data_completeness,
+                'priority_score': priority_score,
                 'composite_score': composite_score
             })
             
         except Exception as e:
+            print(f"Error processing candidate {candidate}: {str(e)}")
             continue
     
     # 4단계: 최고 점수 대체 자산 선택
@@ -257,23 +247,27 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
         # 복합 점수 기준 정렬
         best_candidates.sort(key=lambda x: x['composite_score'], reverse=True)
         
-        # 최소 상관관계 기준 충족하는 첫 번째 후보 선택
-        for candidate in best_candidates:
-            if candidate['correlation'] >= min_correlation or len(best_candidates) < 3:
-                return candidate['ticker'], candidate['data']
+        # 가장 좋은 후보 선택
+        best_candidate = best_candidates[0]
+        
+        print(f"Substituting {target_ticker} ({asset_category}) with {best_candidate['ticker']}")
+        print(f"  - Data completeness: {best_candidate['completeness']:.2%}")
+        print(f"  - Data length: {len(best_candidate['data'])} days")
+        print(f"  - Average correlation: {best_candidate['correlation']:.3f}")
+        
+        return best_candidate['ticker'], best_candidate['data']
     
-    # 5단계: 마지막 수단 - 기본 자산 풀에서 선택
-    fallback_assets = ['SPY', 'QQQ', 'VTI', 'IVV', 'VOO']
-    
-    for fallback in fallback_assets:
-        if fallback != target_ticker:
-            try:
-                fallback_data = yf.download(fallback, start=start_date, end=end_date, progress=False)
-                if not fallback_data.empty and len(fallback_data) > 252:
-                    fallback_prices = fallback_data['Close'] if 'Close' in fallback_data.columns else fallback_data
-                    return fallback, fallback_prices
-            except:
-                continue
+    # 5단계: 모든 후보가 실패한 경우 - 카테고리 내 첫 번째 대안 선택
+    for candidate in candidates:
+        try:
+            fallback_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
+            if not fallback_data.empty:
+                fallback_prices = fallback_data['Close'] if 'Close' in fallback_data.columns else fallback_data
+                if len(fallback_prices) > 50:  # 최소 기준 완화
+                    print(f"Using fallback substitute {candidate} for {target_ticker} (category: {asset_category})")
+                    return candidate, fallback_prices
+        except:
+            continue
     
     return None, None
 

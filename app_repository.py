@@ -515,7 +515,7 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
     ))
     
     fig_yearly.update_layout(
-        title="연도별 성과 비교",
+        title="연도별",
         xaxis_title="연도",
         yaxis_title="수익률 (%)",
         barmode='group',
@@ -543,7 +543,7 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
     ))
     
     fig_monthly.update_layout(
-        title=f"월별 성과 비교 (최근 {len(monthly_port)}개월)",
+        title=f"월별 (최근 {len(monthly_port)}개월)",
         xaxis_title="월",
         yaxis_title="수익률 (%)",
         barmode='group',
@@ -1036,7 +1036,7 @@ def main():
 
             
             # 연도별 및 월별 성과 차트
-            st.subheader("📅 연도별 및 월별 성과 비교")
+            st.subheader("📅 연도별 및 월별 성과")
 
             fig_yearly, fig_monthly = create_performance_charts(
                 portfolio_returns_aligned, benchmark_returns_aligned, benchmark_name

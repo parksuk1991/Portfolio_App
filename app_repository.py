@@ -106,6 +106,7 @@ EXTENDED_ASSET_POOL = {
     'international_dev': ['EFA', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
     'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
     'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
+    'communications': ['XTL', 'IYZ'],
     'healthcare': ['XLV', 'VHT', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
     'financials': ['XLF', 'VFH', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
     'energy': ['XLE', 'VDE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
@@ -116,7 +117,10 @@ EXTENDED_ASSET_POOL = {
     'consumer_staples': ['XLP', 'VDC', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
     'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF'],
     'bonds': ['AGG', 'BND', 'IEFA', 'SCHZ', 'IEF', 'TLT', 'SHY'],
-    'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA']
+    'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA'],
+    'minvol': ['SPLV', 'EFAV', 'IDLV'],
+    'momentum': ['IMTM', 'MTUM', 'PDP']
+    
 }
 
 # 카테고리별 우선순위 설정 (같은 카테고리 내에서만 대체)
@@ -129,6 +133,7 @@ CATEGORY_PRIORITY = {
     'international_dev': ['VEA', 'IEFA', 'EFA', 'ACWX', 'IDEV', 'SCHF', 'VTEB'],
     'international_em': ['VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
     'technology': ['VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV'],
+    'communications': ['XTL', 'IYZ'],
     'healthcare': ['VHT', 'XLV', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
     'financials': ['VFH', 'XLF', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
     'energy': ['VDE', 'XLE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
@@ -139,7 +144,9 @@ CATEGORY_PRIORITY = {
     'consumer_staples': ['VDC', 'XLP', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
     'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF'],
     'bonds': ['BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA'],
-    'commodities': ['DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA']
+    'commodities': ['DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA'],
+    'minvol': ['SPLV', 'EFAV', 'IDLV'],
+    'momentum': ['IMTM', 'MTUM', 'PDP']
 }
 
 def get_enhanced_asset_classification(ticker):

@@ -878,7 +878,7 @@ def main():
                             # 리밸런싱 변화 시각화
                             stocks = list(changes.keys())
                             changes_values = [changes[stock]['change'] for stock in stocks]
-                            colors = ['green' if x > 0 else 'red' for x in changes_values]
+                            colors = ['deeppink' if x > 0 else 'royalblue' for x in changes_values]
 
                             fig_rebal = go.Figure(data=[
                                 go.Bar(x=stocks, y=[x*100 for x in changes_values],

@@ -106,7 +106,7 @@ EXTENDED_ASSET_POOL = {
     'international_dev': ['EFA', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
     'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
     'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
-    'communications': ['XLC','XTL', 'IYZ'],
+    'communications': ['XLC', 'XTL', 'IYZ'],
     'healthcare': ['XLV', 'VHT', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
     'financials': ['XLF', 'VFH', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
     'energy': ['XLE', 'VDE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
@@ -119,7 +119,8 @@ EXTENDED_ASSET_POOL = {
     'bonds': ['AGG', 'BND', 'IEFA', 'SCHZ', 'IEF', 'TLT', 'SHY'],
     'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA'],
     'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
-    'momentum': ['SPMO', 'IMTM', 'MTUM', 'PDP']
+    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
+    
 }
 
 # 카테고리별 우선순위 설정 (같은 카테고리 내에서만 대체)
@@ -145,7 +146,7 @@ CATEGORY_PRIORITY = {
     'bonds': ['BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA'],
     'commodities': ['DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA'],
     'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
-    'momentum': ['SPMO', 'IMTM', 'MTUM', 'PDP']
+    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
 }
 
 def get_enhanced_asset_classification(ticker):
@@ -157,38 +158,13 @@ def get_enhanced_asset_classification(ticker):
     
     return 'large_cap_us'  # 기본값
 
-def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.2):
-    """
-    향상된 대체 자산 선택 - 상관관계가 높고 데이터가 더 길게 존재하는 자산으로만 대체
+def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.3):
+    """향상된 대체 자산 선택 - 동일 카테고리 내에서만 선택"""
     
-    Parameters:
-    - target_ticker: 대체할 타겟 티커
-    - available_data: 기존 포트폴리오 데이터 (타겟 티커 포함)
-    - start_date, end_date: 분석 기간
-    - min_correlation: 최소 상관관계 기준 (기본값 0.5)
-    """
-    
-    # 1단계: 타겟 티커의 현재 데이터 길이 확인
-    try:
-        target_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
-        if target_data.empty:
-            print(f"Warning: No data available for target ticker {target_ticker}")
-            return None, None
-            
-        target_prices = target_data['Close'] if 'Close' in target_data.columns else target_data
-        target_length = len(target_prices)
-        target_returns = target_prices.pct_change().dropna()
-        
-        print(f"Target ticker {target_ticker} has {target_length} days of data")
-        
-    except Exception as e:
-        print(f"Error loading target ticker {target_ticker}: {str(e)}")
-        return None, None
-    
-    # 2단계: 타겟 티커의 카테고리 확인
+    # 1단계: 타겟 티커의 카테고리 확인
     asset_category = get_enhanced_asset_classification(target_ticker)
     
-    # 3단계: 동일 카테고리 내 후보 자산들
+    # 2단계: 동일 카테고리 내 후보 자산들 (우선순위 순서)
     category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
     
     # 타겟 티커 제외
@@ -198,8 +174,8 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
         print(f"Warning: No substitute candidates found for {target_ticker} in category {asset_category}")
         return None, None
     
-    # 4단계: 각 후보의 적합성 평가 (상관관계 + 데이터 길이 기준)
-    qualified_candidates = []
+    # 3단계: 각 후보의 데이터 품질 및 적합성 평가
+    best_candidates = []
     
     for candidate in candidates:
         try:
@@ -210,119 +186,98 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 continue
                 
             candidate_prices = candidate_data['Close'] if 'Close' in candidate_data.columns else candidate_data
-            candidate_length = len(candidate_prices)
             
-            # 조건 1: 데이터 길이가 타겟보다 길어야 함
-            if candidate_length <= target_length:
-                print(f"  {candidate}: Skipped (shorter data: {candidate_length} vs {target_length})")
+            if len(candidate_prices) < 100:  # 최소 데이터 길이 요구사항 완화
                 continue
             
             # 데이터 품질 검사
             data_completeness = candidate_prices.count() / len(candidate_prices)
-            if data_completeness < 0.8:  # 80% 이상 데이터 완전성
-                print(f"  {candidate}: Skipped (low completeness: {data_completeness:.2%})")
+            if data_completeness < 0.7:  # 70% 이상 데이터 완전성
                 continue
             
-            # 5단계: 타겟 티커와의 상관관계 계산
-            candidate_returns = candidate_prices.pct_change().dropna()
+            # 상관관계 계산 (기존 포트폴리오 자산들과)
+            correlation_scores = []
             
-            # 공통 기간 찾기
-            common_period = target_returns.index.intersection(candidate_returns.index)
-            
-            if len(common_period) < 100:  # 최소 100일 겹치는 기간
-                print(f"  {candidate}: Skipped (insufficient overlap: {len(common_period)} days)")
-                continue
-            
-            try:
-                target_common = target_returns.loc[common_period].fillna(0)
-                candidate_common = candidate_returns.loc[common_period].fillna(0)
+            if len(available_data.columns) > 0:
+                # 공통 기간 찾기
+                common_period = candidate_prices.index.intersection(available_data.index)
                 
-                # 상관관계 계산
-                correlation, p_value = pearsonr(target_common, candidate_common)
-                
-                if np.isnan(correlation):
-                    print(f"  {candidate}: Skipped (invalid correlation)")
-                    continue
-                
-                # 조건 2: 상관관계가 최소 기준 이상이어야 함
-                if abs(correlation) < min_correlation:
-                    print(f"  {candidate}: Skipped (low correlation: {correlation:.3f})")
-                    continue
-                
-                # 6단계: 기존 포트폴리오 자산들과의 상관관계도 확인 (다양성 체크)
-                portfolio_correlations = []
-                
-                if len(available_data.columns) > 1:  # 타겟 외 다른 자산이 있는 경우
+                if len(common_period) > 50:  # 최소 겹치는 기간 완화
+                    candidate_returns = candidate_prices.loc[common_period].pct_change().dropna()
+                    
                     for existing_asset in available_data.columns:
-                        if existing_asset == target_ticker:
-                            continue
-                            
-                        existing_returns = available_data[existing_asset].pct_change().dropna()
+                        existing_returns = available_data[existing_asset].loc[common_period].pct_change().dropna()
+                        
+                        # 공통 인덱스
                         common_idx = candidate_returns.index.intersection(existing_returns.index)
                         
-                        if len(common_idx) > 50:
+                        if len(common_idx) > 30:  # 최소 공통 데이터 완화
                             try:
-                                existing_common = existing_returns.loc[common_idx].fillna(0)
-                                candidate_common_portfolio = candidate_returns.loc[common_idx].fillna(0)
+                                corr, p_value = pearsonr(
+                                    candidate_returns.loc[common_idx].fillna(0),
+                                    existing_returns.loc[common_idx].fillna(0)
+                                )
                                 
-                                port_corr, _ = pearsonr(existing_common, candidate_common_portfolio)
-                                
-                                if not np.isnan(port_corr):
-                                    portfolio_correlations.append(abs(port_corr))
+                                if not np.isnan(corr):
+                                    correlation_scores.append(abs(corr))
                             except:
                                 continue
-                
-                avg_portfolio_correlation = np.mean(portfolio_correlations) if portfolio_correlations else 0
-                
-                qualified_candidates.append({
-                    'ticker': candidate,
-                    'data': candidate_prices,
-                    'length': candidate_length,
-                    'target_correlation': abs(correlation),
-                    'portfolio_correlation': avg_portfolio_correlation,
-                    'completeness': data_completeness,
-                    'p_value': p_value
-                })
-                
-                print(f"  {candidate}: Qualified (length: {candidate_length}, corr: {correlation:.3f})")
-                
-            except Exception as e:
-                print(f"  {candidate}: Error calculating correlation: {str(e)}")
-                continue
-                
+            
+            # 평균 상관관계 계산
+            avg_correlation = np.mean(correlation_scores) if correlation_scores else 0
+            
+            # 데이터 길이 점수
+            length_score = min(len(candidate_prices) / 1000, 1.0)  # 4년 기준 정규화
+            
+            # 우선순위 점수 (리스트에서 앞에 있을수록 높은 점수)
+            priority_score = (len(candidates) - candidates.index(candidate)) / len(candidates)
+            
+            # 복합 점수 계산 (우선순위를 더 중요하게 반영)
+            composite_score = (priority_score * 0.4) + (length_score * 0.3) + (data_completeness * 0.2) + (avg_correlation * 0.1)
+            
+            best_candidates.append({
+                'ticker': candidate,
+                'data': candidate_prices,
+                'correlation': avg_correlation,
+                'length_score': length_score,
+                'completeness': data_completeness,
+                'priority_score': priority_score,
+                'composite_score': composite_score
+            })
+            
         except Exception as e:
-            print(f"  {candidate}: Error processing: {str(e)}")
+            print(f"Error processing candidate {candidate}: {str(e)}")
             continue
     
-    # 7단계: 최적 후보 선택
-    if not qualified_candidates:
-        print(f"No qualified substitutes found for {target_ticker}")
-        print(f"  Required: correlation >= {min_correlation}, data length > {target_length}")
-        return None, None
+    # 4단계: 최고 점수 대체 자산 선택
+    if best_candidates:
+        # 복합 점수 기준 정렬
+        best_candidates.sort(key=lambda x: x['composite_score'], reverse=True)
+        
+        # 가장 좋은 후보 선택
+        best_candidate = best_candidates[0]
+        
+        print(f"Substituting {target_ticker} ({asset_category}) with {best_candidate['ticker']}")
+        print(f"  - Data completeness: {best_candidate['completeness']:.2%}")
+        print(f"  - Data length: {len(best_candidate['data'])} days")
+        print(f"  - Average correlation: {best_candidate['correlation']:.3f}")
+        
+        return best_candidate['ticker'], best_candidate['data']
     
-    # 정렬 기준: 1) 타겟과의 상관관계 (높을수록 좋음), 2) 데이터 길이 (길수록 좋음), 3) 포트폴리오 상관관계 (낮을수록 좋음)
-    qualified_candidates.sort(key=lambda x: (
-        x['target_correlation'],  # 타겟 상관관계 (높을수록 좋음)
-        x['length'],              # 데이터 길이 (길수록 좋음)
-        -x['portfolio_correlation'] # 포트폴리오 상관관계 (낮을수록 좋음, 음수로 변환)
-    ), reverse=True)
+    # 5단계: 모든 후보가 실패한 경우 - 카테고리 내 첫 번째 대안 선택
+    for candidate in candidates:
+        try:
+            fallback_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
+            if not fallback_data.empty:
+                fallback_prices = fallback_data['Close'] if 'Close' in fallback_data.columns else fallback_data
+                if len(fallback_prices) > 50:  # 최소 기준 완화
+                    print(f"Using fallback substitute {candidate} for {target_ticker} (category: {asset_category})")
+                    return candidate, fallback_prices
+        except:
+            continue
     
-    # 최고 후보 선택
-    best_candidate = qualified_candidates[0]
-    
-    print(f"\n✅ Best substitute for {target_ticker} ({asset_category}): {best_candidate['ticker']}")
-    print(f"  - Target correlation: {best_candidate['target_correlation']:.3f}")
-    print(f"  - Data length: {best_candidate['length']} days (vs {target_length})")
-    print(f"  - Data completeness: {best_candidate['completeness']:.2%}")
-    print(f"  - Portfolio correlation: {best_candidate['portfolio_correlation']:.3f}")
-    
-    # 다른 후보들도 출력
-    if len(qualified_candidates) > 1:
-        print(f"  Other candidates:")
-        for i, candidate in enumerate(qualified_candidates[1:6], 1):  # 상위 5개만
-            print(f"    {i}. {candidate['ticker']} (corr: {candidate['target_correlation']:.3f}, length: {candidate['length']})")
-    
-    return best_candidate['ticker'], best_candidate['data']
+    return None, None
+
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     """데이터 공백 채우기"""

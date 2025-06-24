@@ -714,20 +714,16 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
 def main():
     st.title("📈 Portfolio Backtesting App")
     st.markdown("##### 만든이: 박석")
-    
+
     st.markdown(
         '<div style="text-align: right; margin-bottom: 10px;">'
         'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'
         '</div>',
         unsafe_allow_html=True
     )
-    
 
-
-    with st.expander("", expanded=False):
-    st.markdown('<p style="font-size:24px; font-weight:bold;">📋 앱 소개</p>', unsafe_allow_html=True)
-
-
+    # 앱 설명 섹션을 expander로 감싸기
+    with st.expander("📋 앱 소개", expanded=False):
         # 앱 설명 섹션을 컬럼으로 분할
         col1, col2 = st.columns([3, 1])  # 3:1 비율로 분할
         

@@ -101,19 +101,42 @@ def find_best_substitute_dynamic(target_ticker, available_data, start_date, end_
     
     # 검색할 후보 자산 풀 (더 광범위한 ETF 리스트)
     candidate_pool = [
-        # 대형주 ETF
-        'SPY', 'QQQ', 'VTI', 'IVV', 'VOO', 'VUG', 'VTV', 'SPYG', 'SPYV',
-        # 섹터 ETF
-        'XLK', 'XLF', 'XLV', 'XLE', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLC',
-        'VGT', 'VFH', 'VHT', 'VDE', 'VIS', 'VCR', 'VDC', 'VPU', 'VAW', 'VOX',
-        # 스타일 및 팩터 ETF
-        'VYM', 'DVY', 'USMV', 'MTUM', 'RSP', 'EQL', 'SPLV', 'QUAL', 'SIZE',
-        # 국제 ETF
-        'EFA', 'VEA', 'EEM', 'VWO', 'IEFA', 'IEMG', 'ACWI', 'VXUS', 'IXUS',
-        # 채권 ETF
-        'AGG', 'BND', 'TLT', 'IEF', 'SHY', 'LQD', 'HYG', 'JNK',
-        # 기타
-        'GLD', 'SLV', 'VNQ', 'REZ', 'IYR'
+    # 미국 주식 ETF
+    'SPY', 'VOO', 'IVV', 'VTI', 'ITOT', 'SPTM', 'SCHB',
+    'QQQ', 'VGT', 'IYW', 'FTEC', 'XLK', 'SOXX', 'SMH',
+    'VTV', 'IVE', 'VYM', 'DVY', 'SCHD', 'NOBL', 'SPYV',
+    'VUG', 'IVW', 'MGK', 'SPYG', 'VGT', 'ARKK', 'ARKQ',
+    'IWM', 'VB', 'IJR', 'SLY', 'VBR', 'IJS', 'VTWO',
+    'RSP', 'EQL', 'EWRS', 'QQEW', 'EUSA', 'VMOT',
+    
+    # 섹터 ETF
+    'XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU',
+    'VIS', 'VAW', 'VFH', 'VHT', 'VDE', 'VPU', 'VCR', 'VDC',
+    'IYZ', 'IYC', 'IYF', 'IYH', 'IYE', 'IDU', 'IYJ', 'IYM', 'IYW',
+    
+    # 리젼 ETF
+    'EFA', 'VEA', 'IEFA', 'SCHF', 'ACWX', 'IXUS', 'FTCS',
+    'EEM', 'VWO', 'SCHE', 'IEMG', 'DEM', 'SPEM', 'FTCS',
+    'EWJ', 'EWG', 'EWU', 'EWC', 'EWY', 'EWA', 'EWS',
+    'FEZ', 'EZU', 'IEV', 'VGK', 'IEUR', 'HEDJ', 
+    'ACWI', 'VT', 'URTH', 'IOO', 'ACWV', 'IDEV'
+    
+    # 채권 ETF
+    'BND', 'AGG', 'SCHZ', 'IUSB', 'FXNC', 'SPAB',
+    'TLT', 'IEF', 'SHY', 'IEI', 'TIP', 'SCHP',
+    'LQD', 'VCIT', 'IGSB', 'USIG', 'IG',
+    'HYG', 'JNK', 'USHY', 'SHYG', 'SJNK',
+    
+    # 대체
+    'VNQ', 'SCHH', 'IYR', 'RWR', 'FREL', 'USRT',
+    'GLD', 'IAU', 'GLDM', 'SLV', 'PDBC', 'DJP',
+    'USO', 'UNG', 'PALL', 'PPLT', 'CPER',
+    
+    # 테마/스타일 ETF
+    'USMV', 'SPLV', 'EFAV', 'ACWV', 'EEMV',
+    'MTUM', 'PDP', 'VMOT', 'SPMO', 'IMTM',
+    'QUAL', 'JQUA', 'DGRW', 'DGRO', 'VIG',
+    'SIZE', 'PRFZ', 'FIXD', 'TOTL', 'SCHZ'
     ]
     
     # 타겟 티커를 후보에서 제외
@@ -156,8 +179,8 @@ def find_best_substitute_dynamic(target_ticker, available_data, start_date, end_
             else:
                 correlation_score = 0.5  # 기본값
             
-            # 종합 점수 (데이터 길이 20% + 상관관계 80%)
-            total_score = data_length_score * 0.2 + correlation_score * 0.8
+            # 종합 점수 (데이터 길이 0% + 상관관계 100%)
+            total_score = data_length_score * 0+ correlation_score * 1
             
             if total_score > best_score:
                 best_score = total_score

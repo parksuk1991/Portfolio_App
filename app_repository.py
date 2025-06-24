@@ -103,7 +103,7 @@ EXTENDED_ASSET_POOL = {
     'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
     'mid_cap': ['MDY', 'IJH', 'VO', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
     'small_cap': ['IWM', 'VB', 'IJR', 'VTWO', 'SPSM', 'VBR', 'IWN'],
-    'international_dev': ['EFA', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
+    'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
     'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
     'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
     'communications': ['XLC', 'XTL', 'IYZ'],
@@ -130,7 +130,7 @@ CATEGORY_PRIORITY = {
     'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
     'mid_cap': ['VO', 'IJH', 'MDY', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
     'small_cap': ['VB', 'IJR', 'IWM', 'VTWO', 'SPSM', 'VBR', 'IWN'],
-    'international_dev': ['VEA', 'IEFA', 'EFA', 'ACWX', 'IDEV', 'SCHF', 'VTEB'],
+    'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
     'international_em': ['VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
     'technology': ['VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV'],
     'communications': ['XLC','XTL', 'IYZ'],
@@ -825,7 +825,7 @@ def main():
     with col1:
         start_date = st.date_input(
             "시작 날짜",
-            value=dt.date(2010, 1, 1),
+            value=dt.date(2011, 1, 1),
             min_value=dt.date(2005, 1, 1),
             max_value=dt.date.today()
         )

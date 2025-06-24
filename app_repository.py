@@ -2,7 +2,7 @@
 """APP_repository.ipynb
 """
 
-# Enhanced app.py with data gap filling functionality
+# Enhanced app.py with data gap filling functionality - FIXED VERSION
 import streamlit as st
 import yfinance as yf
 import numpy as np
@@ -39,244 +39,394 @@ BENCHMARK_OPTIONS = {
     'MSCI ACWI 지수': 'ACWI'
 }
 
-# 유사 자산 매핑
-SIMILAR_ASSETS_MAP = {
-    # 섹터 ETF 매핑
-    'XLC': ['XTL', 'IYZ', 'VNQ'],  # Communication Services -> Telecom/Tech/REITs
-    'XLY': ['RTH', 'XRT', 'VCR'],  # Consumer Discretionary -> Retail
-    'XLP': ['VDC', 'PBJ', 'SZK'],  # Consumer Staples
-    'XLE': ['VDE', 'IYE', 'DIG'],  # Energy
-    'XLF': ['VFH', 'IYF', 'KBE'],  # Financials
-    'XLV': ['VHT', 'IYH', 'PJP'],  # Healthcare
-    'XLI': ['VIS', 'IYJ', 'PPA'],  # Industrials
-    'XLB': ['VAW', 'IYM', 'SLX'],  # Materials
-    'XLK': ['VGT', 'IYW', 'QQQ'],  # Technology
-    'XLU': ['VPU', 'IDU', 'PUI'],  # Utilities
-
-    # 스타일 ETF 매핑
-    'SPYV': ['IVE', 'VTV', 'DVY'],  # S&P 500 Value
-    'SPYG': ['IVW', 'VUG', 'MGK'],  # S&P 500 Growth
-    'VYM': ['DVY', 'VTV', 'SCHD'],  # High Dividend Yield
-    'RSP': ['EQL', 'EWRS', 'SPY'],  # Equal Weight S&P 500
-    'USMV': ['SPLV', 'EFAV', 'SPY'],  # Low Volatility
-    'SPMO': ['MTUM', 'PDP', 'QQQ'],  # Momentum
-
-    # 리전 ETF 매핑
-    'IDEV': ['EFA', 'VEA', 'ACWX'],  # Developed Markets
-    'IEMG': ['EEM', 'VWO', 'SCHE'],  # Emerging Markets
-}
-
-# 대체 자산 풀
-FALLBACK_ASSETS = {
-    'large_cap_growth': ['QQQ', 'VUG', 'IVW'],
-    'large_cap_value': ['VTV', 'IVE', 'DVY'],
-    'small_cap': ['IWM', 'VB', 'IJR'],
-    'international_dev': ['EFA', 'VEA', 'ACWX'],
-    'international_em': ['EEM', 'VWO', 'DEM'],
-    'sectors': ['XLK', 'XLF', 'XLV', 'XLE', 'XLI'],
-    'broad_market': ['SPY', 'VTI', 'ITOT']
-}
+# 광범위한 ETF 후보군 정의
+ETF_CANDIDATES = [
+    # 미국 주식 ETF
+    'SPY', 'VOO', 'IVV', 'VTI', 'ITOT', 'SPTM', 'SCHB',
+    'QQQ', 'VGT', 'IYW', 'FTEC', 'XLK', 'SOXX', 'SMH',
+    'VTV', 'IVE', 'VYM', 'DVY', 'SCHD', 'NOBL', 'SPYV',
+    'VUG', 'IVW', 'MGK', 'SPYG', 'VGT', 'ARKK', 'ARKQ',
+    'IWM', 'VB', 'IJR', 'SLY', 'VBR', 'IJS', 'VTWO',
+    'RSP', 'EQL', 'EWRS', 'QQEW', 'EUSA', 'VMOT',
+    
+    # 섹터 ETF
+    'XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU',
+    'VIS', 'VAW', 'VFH', 'VHT', 'VDE', 'VPU', 'VCR', 'VDC',
+    'IYZ', 'IYC', 'IYF', 'IYH', 'IYE', 'IDU', 'IYJ', 'IYM', 'IYW',
+    
+    # 국제 ETF
+    'EFA', 'VEA', 'IEFA', 'SCHF', 'ACWX', 'IXUS', 'FTCS',
+    'EEM', 'VWO', 'SCHE', 'IEMG', 'DEM', 'SPEM', 'FTCS',
+    'EWJ', 'EWG', 'EWU', 'EWC', 'EWY', 'EWA', 'EWS',
+    'FEZ', 'EZU', 'IEV', 'VGK', 'IEUR', 'HEDJ',
+    'ACWI', 'VT', 'URTH', 'IOO', 'ACWV',
+    
+    # 채권 ETF
+    'BND', 'AGG', 'SCHZ', 'IUSB', 'FXNC', 'SPAB',
+    'TLT', 'IEF', 'SHY', 'IEI', 'TIP', 'SCHP',
+    'LQD', 'VCIT', 'IGSB', 'USIG', 'IG',
+    'HYG', 'JNK', 'USHY', 'SHYG', 'SJNK',
+    
+    # 대체투자
+    'VNQ', 'SCHH', 'IYR', 'RWR', 'FREL', 'USRT',
+    'GLD', 'IAU', 'GLDM', 'SLV', 'PDBC', 'DJP',
+    'USO', 'UNG', 'PALL', 'PPLT', 'CPER',
+    
+    # 테마/스타일 ETF
+    'USMV', 'SPLV', 'EFAV', 'ACWV', 'EEMV',
+    'MTUM', 'PDP', 'VMOT', 'SPMO', 'IMTM',
+    'QUAL', 'JQUA', 'DGRW', 'DGRO', 'VIG',
+    'SIZE', 'PRFZ', 'FIXD', 'TOTL', 'SCHZ'
+]
 
 def get_asset_classification(ticker):
-    """자산 분류 함수"""
-    growth_etfs = ['SPYG', 'VUG', 'IVW', 'MGK', 'QQQ', 'XLK']
-    value_etfs = ['SPYV', 'VTV', 'IVE', 'DVY', 'VYM']
-    international_etfs = ['IDEV', 'EFA', 'VEA', 'IEMG', 'EEM', 'VWO']
-    sector_etfs = ['XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU']
-
-    if ticker in growth_etfs:
+    """자산 분류 함수 - 더 세분화된 분류"""
+    
+    # 대형주 성장
+    large_cap_growth = ['QQQ', 'VUG', 'IVW', 'MGK', 'SPYG', 'VGT', 'XLK', 'ARKK', 'ARKQ']
+    
+    # 대형주 가치
+    large_cap_value = ['VTV', 'IVE', 'DVY', 'VYM', 'SCHD', 'SPYV', 'NOBL']
+    
+    # 중소형주
+    small_mid_cap = ['IWM', 'VB', 'IJR', 'SLY', 'VBR', 'IJS', 'VTWO', 'MDY', 'VO']
+    
+    # 국제 선진국
+    international_dev = ['EFA', 'VEA', 'IEFA', 'SCHF', 'ACWX', 'VGK', 'EWJ', 'EWG', 'EWU']
+    
+    # 신흥국
+    emerging_market = ['EEM', 'VWO', 'SCHE', 'IEMG', 'DEM', 'SPEM', 'EWY', 'EWS']
+    
+    # 기술 섹터
+    technology = ['XLK', 'VGT', 'IYW', 'FTEC', 'SOXX', 'SMH', 'ARKK', 'ARKQ']
+    
+    # 금융 섹터
+    financial = ['XLF', 'VFH', 'IYF', 'KBE', 'KRE']
+    
+    # 헬스케어
+    healthcare = ['XLV', 'VHT', 'IYH', 'PJP', 'IBB']
+    
+    # 에너지
+    energy = ['XLE', 'VDE', 'IYE', 'DIG', 'OIH']
+    
+    # 유틸리티
+    utilities = ['XLU', 'VPU', 'IDU', 'PUI']
+    
+    # 부동산
+    real_estate = ['VNQ', 'SCHH', 'IYR', 'RWR', 'FREL']
+    
+    # 채권
+    bonds = ['BND', 'AGG', 'TLT', 'IEF', 'SHY', 'LQD', 'HYG', 'TIP']
+    
+    # 원자재
+    commodities = ['GLD', 'IAU', 'SLV', 'PDBC', 'DJP', 'USO', 'UNG']
+    
+    # 분류별 확인
+    if ticker in large_cap_growth:
         return 'large_cap_growth'
-    elif ticker in value_etfs:
+    elif ticker in large_cap_value:
         return 'large_cap_value'
-    elif ticker in international_etfs:
-        return 'international_dev' if ticker in ['IDEV', 'EFA', 'VEA'] else 'international_em'
-    elif ticker in sector_etfs:
-        return 'sectors'
+    elif ticker in small_mid_cap:
+        return 'small_mid_cap'
+    elif ticker in international_dev:
+        return 'international_dev'
+    elif ticker in emerging_market:
+        return 'emerging_market'
+    elif ticker in technology:
+        return 'technology'
+    elif ticker in financial:
+        return 'financial'
+    elif ticker in healthcare:
+        return 'healthcare'
+    elif ticker in energy:
+        return 'energy'
+    elif ticker in utilities:
+        return 'utilities'
+    elif ticker in real_estate:
+        return 'real_estate'
+    elif ticker in bonds:
+        return 'bonds'
+    elif ticker in commodities:
+        return 'commodities'
     else:
         return 'broad_market'
 
-def find_best_substitute(target_ticker, available_data, start_date, end_date, min_correlation=0.7):
-    """최적의 대체 자산 찾기"""
-
-    # 1단계: 사전 정의된 유사 자산 확인
-    if target_ticker in SIMILAR_ASSETS_MAP:
-        candidates = SIMILAR_ASSETS_MAP[target_ticker]
-
+def find_best_correlated_substitute(target_ticker, existing_assets, start_date, end_date, min_data_length=252):
+    """상관관계 기반 최적 대체 자산 찾기"""
+    
+    best_substitute = None
+    best_correlation = -1
+    best_data_length = 0
+    
+    # 대상 자산의 분류 확인
+    target_class = get_asset_classification(target_ticker)
+    
+    # 같은 분류의 후보군 우선 선택
+    same_class_candidates = [etf for etf in ETF_CANDIDATES 
+                           if get_asset_classification(etf) == target_class 
+                           and etf != target_ticker]
+    
+    # 전체 후보군
+    all_candidates = [etf for etf in ETF_CANDIDATES if etf != target_ticker]
+    
+    # 같은 분류 우선, 그 다음 전체 검색
+    candidate_groups = [same_class_candidates, all_candidates]
+    
+    for candidates in candidate_groups:
         for candidate in candidates:
             try:
-                candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
-                if len(candidate_data) > 252:  # 최소 1년 데이터
-                    # 기존 데이터와 상관관계 확인 (겹치는 기간이 있다면)
-                    if candidate in available_data.columns:
-                        overlap_data = available_data[[candidate]].dropna()
-                        if len(overlap_data) > 50:  # 충분히 겹치는 데이터
-                            return candidate, candidate_data
-                    else:
-                        return candidate, candidate_data
-            except:
+                # 후보 자산 데이터 로드
+                candidate_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
+                
+                if candidate_data.empty or 'Close' not in candidate_data.columns:
+                    continue
+                    
+                candidate_prices = candidate_data['Close']
+                
+                # NaN 값 처리
+                candidate_prices = candidate_prices.dropna()
+                
+                if len(candidate_prices) < min_data_length:
+                    continue
+                
+                # 기존 자산들과의 상관관계 계산
+                if existing_assets is not None and not existing_assets.empty and len(existing_assets.columns) > 0:
+                    # 공통 기간 찾기
+                    common_period = candidate_prices.index.intersection(existing_assets.index)
+                    
+                    if len(common_period) < 50:  # 최소 50일 겹침 필요
+                        continue
+                    
+                    # 수익률 계산 - 안전한 방식으로
+                    try:
+                        candidate_returns = candidate_prices.loc[common_period].pct_change().dropna()
+                        
+                        # 기존 자산들의 평균 수익률 계산
+                        existing_common = existing_assets.loc[common_period]
+                        if existing_common.empty:
+                            continue
+                            
+                        # 각 열별로 유효한 데이터만 사용
+                        valid_existing = existing_common.dropna(axis=1, how='all')  # 모든 값이 NaN인 열 제거
+                        if valid_existing.empty:
+                            continue
+                            
+                        existing_returns = valid_existing.mean(axis=1).pct_change().dropna()
+                        
+                        # 공통 인덱스 재계산
+                        common_idx = candidate_returns.index.intersection(existing_returns.index)
+                        
+                        if len(common_idx) < 30:
+                            continue
+                        
+                        # 상관관계 계산
+                        candidate_common = candidate_returns.loc[common_idx]
+                        existing_common = existing_returns.loc[common_idx]
+                        
+                        if len(candidate_common) == 0 or len(existing_common) == 0:
+                            continue
+                            
+                        correlation, _ = pearsonr(candidate_common, existing_common)
+                        
+                        # NaN 상관관계 처리
+                        if np.isnan(correlation):
+                            correlation = 0
+                        
+                        # 더 높은 상관관계와 더 긴 데이터를 가진 후보 선택
+                        data_length = len(candidate_prices)
+                        
+                        if (correlation > best_correlation or 
+                            (abs(correlation - best_correlation) < 0.1 and data_length > best_data_length)):
+                            
+                            best_substitute = candidate
+                            best_correlation = correlation
+                            best_data_length = data_length
+                            
+                    except Exception as e:
+                        continue
+                
+                else:
+                    # 첫 번째 자산인 경우 데이터 길이만 고려
+                    data_length = len(candidate_prices)
+                    if data_length > best_data_length:
+                        best_substitute = candidate
+                        best_data_length = data_length
+                        best_correlation = 1.0  # 기본값
+                        
+            except Exception as e:
                 continue
-
-    # 2단계: 자산 분류에 따른 대체 자산
-    asset_class = get_asset_classification(target_ticker)
-    fallback_candidates = FALLBACK_ASSETS.get(asset_class, FALLBACK_ASSETS['broad_market'])
-
-    best_candidate = None
-    best_data = None
-    best_correlation = 0
-
-    for candidate in fallback_candidates:
-        if candidate == target_ticker:
-            continue
-
+        
+        # 같은 분류에서 좋은 후보를 찾았으면 종료
+        if best_substitute and best_correlation > 0.5:
+            break
+    
+    if best_substitute:
+        # 최종 데이터 반환
         try:
-            candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
-            if len(candidate_data) > 252:  # 최소 1년 데이터
+            final_data = yf.download(best_substitute, start=start_date, end=end_date, progress=False)
+            if not final_data.empty and 'Close' in final_data.columns:
+                return best_substitute, final_data['Close'], best_correlation
+        except:
+            pass
+    
+    return None, None, 0
 
-                # 기존 포트폴리오 자산들과의 상관관계 확인
-                if len(available_data.columns) > 0:
-                    # 공통 기간에서 상관관계 계산
-                    common_period = candidate_data.index.intersection(available_data.index)
-                    if len(common_period) > 50:
-                        candidate_returns = candidate_data.loc[common_period].pct_change().dropna()
-                        portfolio_returns = available_data.loc[common_period].mean(axis=1).pct_change().dropna()
-
-                        # 공통 인덱스로 정렬
-                        common_idx = candidate_returns.index.intersection(portfolio_returns.index)
-                        if len(common_idx) > 30:
-                            corr, _ = pearsonr(candidate_returns.loc[common_idx],
-                                             portfolio_returns.loc[common_idx])
-
-                            if corr > best_correlation and corr > min_correlation:
-                                best_correlation = corr
-                                best_candidate = candidate
-                                best_data = candidate_data
-
-                # 첫 번째 후보가 없다면 일단 선택
-                if best_candidate is None:
-                    best_candidate = candidate
-                    best_data = candidate_data
-                    break
-
-        except Exception as e:
-            continue
-
-    return best_candidate, best_data
-
-def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
-    """데이터 공백 채우기"""
-
+def fill_missing_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
+    """향상된 데이터 공백 채우기"""
+    
     st.info("📊 데이터 로딩 및 공백 분석 중...")
-
-    # 원본 데이터 로드 시도
+    
+    # 원본 데이터 로드
     original_data = {}
     missing_tickers = []
     data_info = {}
-
+    
     for ticker in tickers:
         try:
-            data = yf.download(ticker, start=start_date, end=end_date)['Close']
-
-            if isinstance(data, pd.Series):
-                data = data.to_frame(name=ticker)
-
-            # 데이터 품질 확인
-            data_start = data.first_valid_index()
-            data_end = data.last_valid_index()
-            data_length = len(data.dropna())
-
-            # 목표 시작일과 실제 데이터 시작일 비교
+            # 안전한 데이터 다운로드
+            data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            
+            if data.empty or 'Close' not in data.columns:
+                missing_tickers.append(ticker)
+                st.warning(f"❌ {ticker}: 데이터 없음")
+                continue
+            
+            prices = data['Close'].dropna()  # NaN 값 제거
+            
+            if prices.empty:
+                missing_tickers.append(ticker)
+                st.warning(f"❌ {ticker}: 유효한 데이터 없음")
+                continue
+                
+            data_start = prices.first_valid_index()
+            data_end = prices.last_valid_index()
+            data_length = len(prices)
+            
+            # 목표 시작일과 비교
             target_start = pd.to_datetime(start_date)
-
-            if data_start is None or data_length < 50:
+            
+            if data_start is None or data_length < 50:  # 최소 데이터 길이 완화
                 missing_tickers.append(ticker)
                 st.warning(f"❌ {ticker}: 데이터 부족 (길이: {data_length})")
             elif data_start > target_start + pd.DateOffset(years=1):
                 missing_tickers.append(ticker)
                 st.warning(f"⚠️ {ticker}: 시작일 부족 (목표: {target_start.strftime('%Y-%m')}, 실제: {data_start.strftime('%Y-%m')})")
                 data_info[ticker] = {
-                    'original_data': data,
+                    'original_data': prices,
                     'start_gap': (data_start - target_start).days,
                     'needs_filling': True
                 }
             else:
-                original_data[ticker] = data
+                # DataFrame으로 안전하게 변환
+                price_df = pd.DataFrame({ticker: prices})
+                original_data[ticker] = price_df
                 data_info[ticker] = {
-                    'original_data': data,
+                    'original_data': prices,
                     'start_gap': 0,
                     'needs_filling': False
                 }
                 st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
-
+                
         except Exception as e:
             missing_tickers.append(ticker)
             st.error(f"❌ {ticker}: 데이터 로드 실패 - {str(e)}")
-
+    
     if not fill_gaps or len(missing_tickers) == 0:
         if len(original_data) > 0:
-            combined_data = pd.concat(original_data.values(), axis=1)
-            combined_data.columns = original_data.keys()
-            return combined_data.resample('ME').last().dropna(), {}
+            # 안전한 DataFrame 결합
+            try:
+                combined_data = pd.concat(list(original_data.values()), axis=1)
+                combined_data.columns = list(original_data.keys())
+                
+                # 월말 리샘플링 및 NaN 처리
+                monthly_data = combined_data.resample('ME').last()
+                monthly_data = monthly_data.dropna(how='all')  # 모든 값이 NaN인 행만 제거
+                
+                return monthly_data, {}
+            except Exception as e:
+                st.error(f"데이터 결합 오류: {str(e)}")
+                return None, {}
         else:
             return None, {}
-
-    # 대체 자산 찾기 + 데이터 결합
-    st.info("🔄 대체 자산 검색 및 데이터 결합 중...")
-
+    
+    # 대체 자산 찾기
+    st.info("🔄 상관관계 기반 대체 자산 검색 중...")
+    
     substitution_log = {}
     enhanced_data = original_data.copy()
-
-    # 기존 데이터 DataFrame으로 결합
+    
+    # 기존 데이터 결합 - 안전한 방식
+    existing_assets = None
     if len(enhanced_data) > 0:
-        available_data = pd.concat(enhanced_data.values(), axis=1)
-        available_data.columns = enhanced_data.keys()
+        try:
+            existing_assets = pd.concat(list(enhanced_data.values()), axis=1)
+            existing_assets.columns = list(enhanced_data.keys())
+        except Exception as e:
+            st.warning(f"기존 데이터 결합 실패: {str(e)}")
+            existing_assets = pd.DataFrame()
     else:
-        available_data = pd.DataFrame()
-
+        existing_assets = pd.DataFrame()
+    
     for ticker in missing_tickers:
-        st.write(f"🔍 {ticker} 대체 자산 검색 중...")
-
-        substitute_ticker, substitute_data = find_best_substitute(
-            ticker, available_data, start_date, end_date
+        st.write(f"🔍 {ticker} 최적 대체 자산 검색 중...")
+        
+        substitute_ticker, substitute_data, correlation = find_best_correlated_substitute(
+            ticker, existing_assets, start_date, end_date
         )
-
+        
         if substitute_ticker and substitute_data is not None:
-            # 대체 데이터 처리
-            if isinstance(substitute_data, pd.Series):
-                substitute_data = substitute_data.to_frame(name=substitute_ticker)
-
-            # 원본 티커 이름으로 컬럼명 변경
-            substitute_df = substitute_data.copy()
-            substitute_df.columns = [ticker]
-
-            enhanced_data[ticker] = substitute_df
-            substitution_log[ticker] = {
-                'substitute': substitute_ticker,
-                'original_start': data_info.get(ticker, {}).get('original_data', pd.DataFrame()).first_valid_index(),
-                'substitute_start': substitute_data.first_valid_index(),
-                'method': 'similar_asset'
-            }
-
-            st.success(f"✅ {ticker} → {substitute_ticker} 대체 완료")
-
-            # available_data 업데이트
-            if len(available_data) == 0:
-                available_data = substitute_df
-            else:
-                available_data = pd.concat([available_data, substitute_df], axis=1)
+            try:
+                # 대체 데이터 처리 - 안전한 DataFrame 생성
+                substitute_data_clean = substitute_data.dropna()
+                substitute_df = pd.DataFrame({ticker: substitute_data_clean})
+                enhanced_data[ticker] = substitute_df
+                
+                substitution_log[ticker] = {
+                    'substitute': substitute_ticker,
+                    'correlation': correlation,
+                    'substitute_start': substitute_data_clean.first_valid_index(),
+                    'substitute_length': len(substitute_data_clean),
+                    'method': 'correlation_based',
+                    'asset_class': get_asset_classification(ticker)
+                }
+                
+                st.success(f"✅ {ticker} → {substitute_ticker} (상관관계: {correlation:.3f})")
+                
+                # 기존 자산 데이터 업데이트
+                if existing_assets is None or existing_assets.empty:
+                    existing_assets = substitute_df
+                else:
+                    try:
+                        existing_assets = pd.concat([existing_assets, substitute_df], axis=1)
+                    except Exception as e:
+                        st.warning(f"데이터 추가 실패: {str(e)}")
+                        
+            except Exception as e:
+                st.error(f"❌ {ticker} 대체 데이터 처리 실패: {str(e)}")
         else:
             st.error(f"❌ {ticker}: 적절한 대체 자산을 찾을 수 없습니다.")
-
+    
     # 최종 데이터 결합
     if len(enhanced_data) > 0:
-        final_data = pd.concat(enhanced_data.values(), axis=1)
-        final_data.columns = enhanced_data.keys()
-
-        # 월말 리샘플링
-        monthly_data = final_data.resample('ME').last().dropna()
-
-        st.success(f"🎉 최종 데이터셋 완성: {len(monthly_data.columns)}개 자산, {len(monthly_data)}개월 데이터")
-
-        return monthly_data, substitution_log
+        try:
+            final_data = pd.concat(list(enhanced_data.values()), axis=1)
+            final_data.columns = list(enhanced_data.keys())
+            
+            # 월말 리샘플링 및 안전한 NaN 처리
+            monthly_data = final_data.resample('ME').last()
+            monthly_data = monthly_data.dropna(how='all')  # 모든 값이 NaN인 행만 제거
+            
+            # 최소한의 데이터 검증
+            if not monthly_data.empty and len(monthly_data.columns) > 0:
+                st.success(f"🎉 최종 데이터셋 완성: {len(monthly_data.columns)}개 자산, {len(monthly_data)}개월 데이터")
+                return monthly_data, substitution_log
+            else:
+                st.error("❌ 최종 데이터셋이 비어있습니다.")
+                return None, substitution_log
+                
+        except Exception as e:
+            st.error(f"❌ 최종 데이터 처리 실패: {str(e)}")
+            return None, substitution_log
     else:
         st.error("❌ 사용 가능한 데이터가 없습니다.")
         return None, {}
@@ -285,7 +435,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
 @st.cache_data
 def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
     """유니버스 데이터"""
-    return fill_missing_data(tickers, start_date, end_date, fill_gaps)
+    return fill_missing_data_enhanced(tickers, start_date, end_date, fill_gaps)
     
 @st.cache_data
 def load_benchmark_data(ticker, start_date, end_date):

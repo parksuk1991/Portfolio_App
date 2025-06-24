@@ -157,7 +157,7 @@ def get_enhanced_asset_classification(ticker):
     
     return 'large_cap_us'  # 기본값
 
-def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.5):
+def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.2):
     """
     향상된 대체 자산 선택 - 상관관계가 높고 데이터가 더 길게 존재하는 자산으로만 대체
     

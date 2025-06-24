@@ -722,8 +722,17 @@ def main():
         unsafe_allow_html=True
     )
     
-    # 앱 설명 섹션을 expander로 감싸기
-    with st.expander("###📋 앱 소개", expanded=False):
+    # 앱 설명 섹션을 expander로 감싸기 - 폰트 크기 증가
+    st.markdown("""
+    <style>
+    .streamlit-expanderHeader {
+        font-size: 20px !important;
+        font-weight: bold !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    with st.expander("📋 앱 소개", expanded=False):
         # 앱 설명 섹션을 컬럼으로 분할
         col1, col2 = st.columns([3, 1])  # 3:1 비율로 분할
         

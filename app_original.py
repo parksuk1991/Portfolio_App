@@ -424,11 +424,8 @@ def safe_convert_to_float(value):
         return 0.0
 
 
-
-
-
-def calculate_performance_metrics(returns):
-    """성과 지표 계산"""
+def calculate_performance_metrics(returns, benchmark_returns=None):
+    """성과 지표 계산 (추적오차 포함)"""
     if len(returns) == 0:
         return {
             'total_return': 0.0,
@@ -450,14 +447,62 @@ def calculate_performance_metrics(returns):
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = safe_convert_to_float(drawdown.min())
 
+    # 추적오차 계산
+    tracking_error = 0.0
+    if benchmark_returns is not None and len(benchmark_returns) > 0:
+        # 공통 인덱스 찾기
+        common_index = returns.index.intersection(benchmark_returns.index)
+        if len(common_index) > 1:
+            aligned_returns = returns.loc[common_index]
+            aligned_benchmark = benchmark_returns.loc[common_index]
+            
+            # 초과수익률의 표준편차 (연환산)
+            excess_returns = aligned_returns - aligned_benchmark
+            tracking_error = safe_convert_to_float(excess_returns.std() * np.sqrt(12))
 
     return {
         'total_return': total_return,
         'annualized_return': annualized_return,
         'volatility': volatility,
         'sharpe_ratio': sharpe_ratio,
-        'max_drawdown': max_drawdown
+        'max_drawdown': max_drawdown,
+        'tracking_error': tracking_error
     }
+
+def calculate_portfolio_turnover(weights_composition):
+    """포트폴리오 회전율 계산"""
+    if len(weights_composition) < 2:
+        return 0.0
+    
+    dates = sorted(weights_composition.keys())
+    turnovers = []
+    
+    for i in range(1, len(dates)):
+        current_date = dates[i]
+        previous_date = dates[i-1]
+        
+        current_weights = weights_composition[current_date]
+        previous_weights = weights_composition[previous_date]
+        
+        # 모든 자산 리스트
+        all_assets = set(list(current_weights.keys()) + list(previous_weights.keys()))
+        
+        # 가중치 변화량 계산
+        total_change = 0.0
+        for asset in all_assets:
+            current_weight = current_weights.get(asset, 0.0)
+            previous_weight = previous_weights.get(asset, 0.0)
+            total_change += abs(current_weight - previous_weight)
+        
+        # 회전율은 변화량의 절반 (매도와 매수가 같은 양이므로)
+        turnover = total_change / 2.0
+        turnovers.append(turnover)
+    
+    # 연간 회전율로 환산 (월별 리밸런싱이므로 12를 곱함)
+    annual_turnover = np.mean(turnovers) * 12 if turnovers else 0.0
+    return annual_turnover
+
+
 
 def get_rebalancing_changes(current_weights, previous_weights):
     """리밸런싱 변화 계산"""
@@ -774,8 +819,12 @@ def main():
                 #st.write(f"공통 기간: {common_index[0].strftime('%Y-%m-%d')} ~ {common_index[-1].strftime('%Y-%m-%d')}")
 
                 # 성과 지표 계산
-                portfolio_metrics = calculate_performance_metrics(portfolio_returns_aligned)
+                portfolio_metrics = calculate_performance_metrics(portfolio_returns_aligned, benchmark_returns_aligned)
                 benchmark_metrics = calculate_performance_metrics(benchmark_returns_aligned)
+                
+                # 회전율 계산
+                portfolio_turnover = calculate_portfolio_turnover(weights_composition)
+
 
             # 결과 표시
             st.success(f"백테스팅 및 포트폴리오 생성 완료! ({common_index[0].strftime('%Y-%m')} ~ {common_index[-1].strftime('%Y-%m')})")
@@ -794,29 +843,32 @@ def main():
                         f"{portfolio_metrics['annualized_return']:.2%}",
                         f"{portfolio_metrics['volatility']:.2%}",
                         f"{portfolio_metrics['sharpe_ratio']:.2f}",
-                        f"{portfolio_metrics['max_drawdown']:.2%}"
+                        f"{portfolio_metrics['max_drawdown']:.2%}",
+                        f"{portfolio_metrics['tracking_error']:.2%}"
                     ],
                     f'{benchmark_name}': [
                         f"{benchmark_metrics['total_return']:.2%}",
                         f"{benchmark_metrics['annualized_return']:.2%}",
                         f"{benchmark_metrics['volatility']:.2%}",
                         f"{benchmark_metrics['sharpe_ratio']:.2f}",
-                        f"{benchmark_metrics['max_drawdown']:.2%}"
+                        f"{benchmark_metrics['max_drawdown']:.2%}",
+                        "N/A"
                     ]
-                }, index=['총 수익률', '연평균 수익률', '연변동성', '샤프 비율', '최대 낙폭'])
+                }, index=['총 수익률', '연평균 수익률', '연변동성', '샤프 비율', '최대 낙폭', '추적오차'])
 
                 st.dataframe(metrics_df, use_container_width=True)
 
             with col2:
                 st.subheader("📋 백테스팅 정보")
                 info_df = pd.DataFrame({
-                    '항목': ['분석 기간', '총 종목 수', '선택 종목 수', '리밸런싱', '가중치 범위'],
+                    '항목': ['분석 기간', '총 종목 수', '선택 종목 수', '리밸런싱', '가중치 범위', '연간 회전율'],
                     '값': [
                         f"{common_index[0].strftime('%Y-%m')} ~ {common_index[-1].strftime('%Y-%m')}",
                         f"{len(tickers)}개",
                         f"{top_n_stocks}개",
                         "매월",
-                        f"{lower_bound:.1%} ~ {upper_bound:.1%}"
+                        f"{lower_bound:.1%} ~ {upper_bound:.1%}",
+                        f"{portfolio_turnover:.1%}"
                     ]
                 })
                 st.dataframe(info_df, use_container_width=True, hide_index=True)

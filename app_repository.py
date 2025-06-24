@@ -321,6 +321,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                     'start_gap': 0,
                     'needs_filling': False
                 }
+                st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
 
         except Exception as e:
             missing_tickers.append(ticker)
@@ -347,6 +348,8 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     else:
         available_data = pd.DataFrame()
 
+    for ticker in missing_tickers:
+        st.write(f"🔍 {ticker} 대체 자산 검색 중...")
 
         substitute_ticker, substitute_data = find_best_substitute_enhanced(
             ticker, available_data, start_date, end_date
@@ -368,6 +371,8 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                 'substitute_start': substitute_data.first_valid_index(),
                 'method': 'similar_asset'
             }
+
+            st.success(f"✅ {ticker} → {substitute_ticker} 대체 완료")
 
             # available_data 업데이트
             if len(available_data) == 0:
@@ -714,14 +719,14 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
 def main():
     st.title("📈 Portfolio Backtesting App")
     st.markdown("##### 만든이: 박석")
-
+    
     st.markdown(
         '<div style="text-align: right; margin-bottom: 10px;">'
         'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'
         '</div>',
         unsafe_allow_html=True
     )
-
+    
     # 앱 설명 섹션을 expander로 감싸기
     with st.expander("📋 앱 소개", expanded=False):
         # 앱 설명 섹션을 컬럼으로 분할

@@ -785,7 +785,8 @@ def main():
     # 기본 티커 목록
     default_tickers = [
         'XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU',
-        'SPYV', 'SPYG', 'VYM', 'RSP', 'USMV', 'SPMO', 'SPY', 'QQQ', 'IDEV', 'IEMG', 'ACWI'
+        'SPYV', 'SPYG', 'VYM', 'RSP', 'USMV', 'SPMO', 'SPY', 'QQQ', 'IDEV', 'IEMG', 'ACWI', 'PTF', 'GRID', 'BOTZ', 'SMH', 'ITB', 
+        'EWJ', 'IEUR', 'IXUS', 'ACWX', 'EFA', 'VGK', 'FEZ', 'MCHI', 'EPP' 
     ]
     
     tickers_input = st.sidebar.text_area(

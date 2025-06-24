@@ -479,129 +479,78 @@ def get_rebalancing_changes(current_weights, previous_weights):
 
     return changes
 
-def create_performance_heatmaps(portfolio_returns, benchmark_returns, benchmark_name):
-    """연도별 및 월별 성과 히트맵 생성"""
+# 4. 연도별/월별 성과 차트 생성 함수
+def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_name):
+    """연도별 및 월별 성과 비교 차트 생성"""
     
     # 공통 기간 데이터
     common_index = portfolio_returns.index.intersection(benchmark_returns.index)
     port_aligned = portfolio_returns.loc[common_index]
     bench_aligned = benchmark_returns.loc[common_index]
     
-    # 연도별 히트맵 데이터 준비
-    years = sorted(port_aligned.index.year.unique())
+    # 연도별 성과
     yearly_port = port_aligned.groupby(port_aligned.index.year).apply(lambda x: (1 + x).prod() - 1)
     yearly_bench = bench_aligned.groupby(bench_aligned.index.year).apply(lambda x: (1 + x).prod() - 1)
     
-    # 연도별 히트맵
-    yearly_data = pd.DataFrame({
-        '포트폴리오': yearly_port * 100,
-        benchmark_name: yearly_bench * 100
-    })
+    # 월별 성과 (최근 24개월)
+    monthly_port = port_aligned.tail(24)
+    monthly_bench = bench_aligned.tail(24)
     
+    # 연도별 성과 차트
     fig_yearly = go.Figure()
     
-    # 포트폴리오 히트맵
-    fig_yearly.add_trace(go.Heatmap(
-        z=[yearly_data['포트폴리오'].values],
-        x=yearly_data.index,
-        y=['포트폴리오'],
-        colorscale='RdYlGn',
-        zmid=0,
-        text=[[f"{val:.1f}%" for val in yearly_data['포트폴리오'].values]],
-        texttemplate="%{text}",
-        textfont={"size": 10},
-        hoverongaps=False,
-        showscale=False
+    years = yearly_port.index
+    fig_yearly.add_trace(go.Bar(
+        x=years,
+        y=yearly_port * 100,
+        name='포트폴리오',
+        marker_color='deeppink',
+        opacity=0.7
     ))
-    
-    # 벤치마크 히트맵
-    fig_yearly.add_trace(go.Heatmap(
-        z=[yearly_data[benchmark_name].values],
-        x=yearly_data.index,
-        y=[benchmark_name],
-        colorscale='RdYlGn',
-        zmid=0,
-        text=[[f"{val:.1f}%" for val in yearly_data[benchmark_name].values]],
-        texttemplate="%{text}",
-        textfont={"size": 10},
-        hoverongaps=False,
-        showscale=True
+    fig_yearly.add_trace(go.Bar(
+        x=years,
+        y=yearly_bench * 100,
+        name=benchmark_name,
+        marker_color='royalblue',
+        opacity=0.7
     ))
     
     fig_yearly.update_layout(
-        title="연도별 수익률 히트맵",
+        title="연도별",
         xaxis_title="연도",
-        template="plotly_dark",
-        height=200,
-        yaxis=dict(tickmode='linear')
-    )
-    
-    # 월별 히트맵 (최근 24개월)
-    recent_data = port_aligned.tail(24)
-    recent_bench = bench_aligned.tail(24)
-    
-    # 월별 데이터를 년-월 형태로 재구성
-    monthly_data = []
-    for date, port_ret, bench_ret in zip(recent_data.index, recent_data.values, recent_bench.values):
-        monthly_data.append({
-            'Year': date.year,
-            'Month': date.month,
-            'Portfolio': port_ret * 100,
-            'Benchmark': bench_ret * 100
-        })
-    
-    monthly_df = pd.DataFrame(monthly_data)
-    
-    # 피벗 테이블로 변환
-    pivot_port = monthly_df.pivot(index='Year', columns='Month', values='Portfolio')
-    pivot_bench = monthly_df.pivot(index='Year', columns='Month', values='Benchmark')
-    
-    # 월 이름 매핑
-    month_names = ['1월', '2월', '3월', '4월', '5월', '6월', 
-                   '7월', '8월', '9월', '10월', '11월', '12월']
-    
-    fig_monthly = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=['포트폴리오 월별 수익률', f'{benchmark_name} 월별 수익률'],
-        vertical_spacing=0.15
-    )
-    
-    # 포트폴리오 히트맵
-    fig_monthly.add_trace(
-        go.Heatmap(
-            z=pivot_port.values,
-            x=[month_names[i-1] for i in pivot_port.columns],
-            y=pivot_port.index,
-            colorscale='RdYlGn',
-            zmid=0,
-            text=[[f"{val:.1f}%" if not pd.isna(val) else "" for val in row] for row in pivot_port.values],
-            texttemplate="%{text}",
-            textfont={"size": 8},
-            showscale=False
-        ),
-        row=1, col=1
-    )
-    
-    # 벤치마크 히트맵
-    fig_monthly.add_trace(
-        go.Heatmap(
-            z=pivot_bench.values,
-            x=[month_names[i-1] for i in pivot_bench.columns],
-            y=pivot_bench.index,
-            colorscale='RdYlGn',
-            zmid=0,
-            text=[[f"{val:.1f}%" if not pd.isna(val) else "" for val in row] for row in pivot_bench.values],
-            texttemplate="%{text}",
-            textfont={"size": 8},
-            showscale=True
-        ),
-        row=2, col=1
-    )
-    
-    fig_monthly.update_layout(
-        title="월별 수익률 히트맵 (최근 24개월)",
+        yaxis_title="수익률 (%)",
+        barmode='group',
         template="plotly_dark",
         height=400
+    )
+    
+    # 월별 성과 차트
+    fig_monthly = go.Figure()
+    
+    months = [f"{d.year}-{d.month:02d}" for d in monthly_port.index]
+    fig_monthly.add_trace(go.Bar(
+        x=months,
+        y=monthly_port * 100,
+        name='포트폴리오',
+        marker_color='deeppink',
+        opacity=0.7
+    ))
+    fig_monthly.add_trace(go.Bar(
+        x=months,
+        y=monthly_bench * 100,
+        name=benchmark_name,
+        marker_color='royalblue',
+        opacity=0.7
+    ))
+    
+    fig_monthly.update_layout(
+        title=f"월별 (최근 {len(monthly_port)}개월)",
+        xaxis_title="월",
+        yaxis_title="수익률 (%)",
+        barmode='group',
+        template="plotly_dark",
+        height=400,
+        xaxis=dict(tickangle=45)
     )
     
     return fig_yearly, fig_monthly
@@ -1090,9 +1039,17 @@ def main():
             # 연도별 및 월별 성과 차트
             st.subheader("📅 연도별 및 월별 성과")
 
-            fig_yearly, fig_monthly = create_performance_heatmaps(
+            fig_yearly, fig_monthly = create_performance_charts(
                 portfolio_returns_aligned, benchmark_returns_aligned, benchmark_name
             )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.plotly_chart(fig_yearly, use_container_width=True)
+            with col2:
+                st.plotly_chart(fig_monthly, use_container_width=True)
+
+
 
 
             # 포트폴리오 구성 히스토리

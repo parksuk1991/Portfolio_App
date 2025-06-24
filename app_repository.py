@@ -321,7 +321,6 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                     'start_gap': 0,
                     'needs_filling': False
                 }
-                st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
 
         except Exception as e:
             missing_tickers.append(ticker)
@@ -371,8 +370,6 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                 'substitute_start': substitute_data.first_valid_index(),
                 'method': 'similar_asset'
             }
-
-            st.success(f"✅ {ticker} → {substitute_ticker} 대체 완료")
 
             # available_data 업데이트
             if len(available_data) == 0:

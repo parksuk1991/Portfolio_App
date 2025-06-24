@@ -96,72 +96,187 @@ def get_asset_classification(ticker):
     else:
         return 'broad_market'
 
-def find_best_substitute(target_ticker, available_data, start_date, end_date, min_correlation=0.7):
-    """최적의 대체 자산 찾기"""
+# 확장된 자산 풀
+EXTENDED_ASSET_POOL = {
+    'large_cap_us': ['SPY', 'VOO', 'IVV', 'VTI', 'ITOT', 'SPTM', 'SPLG'],
+    'large_cap_growth': ['QQQ', 'VUG', 'IVW', 'MGK', 'SPYG', 'VONG', 'IWF'],
+    'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
+    'mid_cap': ['MDY', 'IJH', 'VO', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
+    'small_cap': ['IWM', 'VB', 'IJR', 'VTWO', 'SPSM', 'VBR', 'IWN'],
+    'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
+    'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
+    'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
+    'communications': ['XLC', 'XTL', 'IYZ'],
+    'healthcare': ['XLV', 'VHT', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
+    'financials': ['XLF', 'VFH', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
+    'energy': ['XLE', 'VDE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
+    'materials': ['XLB', 'VAW', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB'],
+    'industrials': ['XLI', 'VIS', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN'],
+    'utilities': ['XLU', 'VPU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU'],
+    'consumer_disc': ['XLY', 'VCR', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ'],
+    'consumer_staples': ['XLP', 'VDC', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
+    'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF'],
+    'bonds': ['AGG', 'BND', 'IEFA', 'SCHZ', 'IEF', 'TLT', 'SHY'],
+    'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA'],
+    'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
+    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
+    
+}
 
-    # 1단계: 사전 정의된 유사 자산 확인
-    if target_ticker in SIMILAR_ASSETS_MAP:
-        candidates = SIMILAR_ASSETS_MAP[target_ticker]
+# 카테고리별 우선순위 설정 (같은 카테고리 내에서만 대체)
+CATEGORY_PRIORITY = {
+    'large_cap_us': ['VOO', 'IVV', 'VTI', 'SPY', 'ITOT', 'SPTM', 'SPLG'],
+    'large_cap_growth': ['VUG', 'IVW', 'QQQ', 'MGK', 'SPYG', 'VONG', 'IWF'],
+    'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
+    'mid_cap': ['VO', 'IJH', 'MDY', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
+    'small_cap': ['VB', 'IJR', 'IWM', 'VTWO', 'SPSM', 'VBR', 'IWN'],
+    'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
+    'international_em': ['VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
+    'technology': ['VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV'],
+    'communications': ['XLC','XTL', 'IYZ'],
+    'healthcare': ['VHT', 'XLV', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
+    'financials': ['VFH', 'XLF', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
+    'energy': ['VDE', 'XLE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
+    'materials': ['VAW', 'XLB', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB'],
+    'industrials': ['VIS', 'XLI', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN'],
+    'utilities': ['VPU', 'XLU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU'],
+    'consumer_disc': ['VCR', 'XLY', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ'],
+    'consumer_staples': ['VDC', 'XLP', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
+    'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF'],
+    'bonds': ['BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA'],
+    'commodities': ['DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA'],
+    'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
+    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
+}
 
-        for candidate in candidates:
-            try:
-                candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
-                if len(candidate_data) > 252:  # 최소 1년 데이터
-                    # 기존 데이터와 상관관계 확인 (겹치는 기간이 있다면)
-                    if candidate in available_data.columns:
-                        overlap_data = available_data[[candidate]].dropna()
-                        if len(overlap_data) > 50:  # 충분히 겹치는 데이터
-                            return candidate, candidate_data
-                    else:
-                        return candidate, candidate_data
-            except:
-                continue
+def get_enhanced_asset_classification(ticker):
+    """향상된 자산 분류 - 더 세분화된 카테고리"""
+    
+    for category, tickers in EXTENDED_ASSET_POOL.items():
+        if ticker in tickers:
+            return category
+    
+    return 'large_cap_us'  # 기본값
 
-    # 2단계: 자산 분류에 따른 대체 자산
-    asset_class = get_asset_classification(target_ticker)
-    fallback_candidates = FALLBACK_ASSETS.get(asset_class, FALLBACK_ASSETS['broad_market'])
-
-    best_candidate = None
-    best_data = None
-    best_correlation = 0
-
-    for candidate in fallback_candidates:
-        if candidate == target_ticker:
-            continue
-
+def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.3):
+    """향상된 대체 자산 선택 - 동일 카테고리 내에서만 선택"""
+    
+    # 1단계: 타겟 티커의 카테고리 확인
+    asset_category = get_enhanced_asset_classification(target_ticker)
+    
+    # 2단계: 동일 카테고리 내 후보 자산들 (우선순위 순서)
+    category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
+    
+    # 타겟 티커 제외
+    candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
+    
+    if not candidates:
+        print(f"Warning: No substitute candidates found for {target_ticker} in category {asset_category}")
+        return None, None
+    
+    # 3단계: 각 후보의 데이터 품질 및 적합성 평가
+    best_candidates = []
+    
+    for candidate in candidates:
         try:
-            candidate_data = yf.download(candidate, start=start_date, end=end_date)['Close']
-            if len(candidate_data) > 252:  # 최소 1년 데이터
-
-                # 기존 포트폴리오 자산들과의 상관관계 확인
-                if len(available_data.columns) > 0:
-                    # 공통 기간에서 상관관계 계산
-                    common_period = candidate_data.index.intersection(available_data.index)
-                    if len(common_period) > 50:
-                        candidate_returns = candidate_data.loc[common_period].pct_change().dropna()
-                        portfolio_returns = available_data.loc[common_period].mean(axis=1).pct_change().dropna()
-
-                        # 공통 인덱스로 정렬
-                        common_idx = candidate_returns.index.intersection(portfolio_returns.index)
-                        if len(common_idx) > 30:
-                            corr, _ = pearsonr(candidate_returns.loc[common_idx],
-                                             portfolio_returns.loc[common_idx])
-
-                            if corr > best_correlation and corr > min_correlation:
-                                best_correlation = corr
-                                best_candidate = candidate
-                                best_data = candidate_data
-
-                # 첫 번째 후보가 없다면 일단 선택
-                if best_candidate is None:
-                    best_candidate = candidate
-                    best_data = candidate_data
-                    break
-
+            # 후보 데이터 로드
+            candidate_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
+            
+            if candidate_data.empty:
+                continue
+                
+            candidate_prices = candidate_data['Close'] if 'Close' in candidate_data.columns else candidate_data
+            
+            if len(candidate_prices) < 100:  # 최소 데이터 길이 요구사항 완화
+                continue
+            
+            # 데이터 품질 검사
+            data_completeness = candidate_prices.count() / len(candidate_prices)
+            if data_completeness < 0.7:  # 70% 이상 데이터 완전성
+                continue
+            
+            correlation_scores = []
+            
+            if len(available_data.columns) > 0:
+                # 공통 기간 찾기
+                common_period = candidate_prices.index.intersection(available_data.index)
+                
+                if len(common_period) > 50:  # 최소 겹치는 기간 완화
+                    candidate_returns = candidate_prices.loc[common_period].pct_change().dropna()
+                    
+                    for existing_asset in available_data.columns:
+                        existing_returns = available_data[existing_asset].loc[common_period].pct_change().dropna()
+                        
+                        # 공통 인덱스
+                        common_idx = candidate_returns.index.intersection(existing_returns.index)
+                        
+                        if len(common_idx) > 30:  # 최소 공통 데이터 완화
+                            try:
+                                corr, p_value = pearsonr(
+                                    candidate_returns.loc[common_idx].fillna(0),
+                                    existing_returns.loc[common_idx].fillna(0)
+                                )
+                                
+                                if not np.isnan(corr):
+                                    correlation_scores.append(abs(corr))
+                            except:
+                                continue
+            
+            # 평균 상관관계 계산
+            avg_correlation = np.mean(correlation_scores) if correlation_scores else 0
+            
+            # 데이터 길이 점수
+            length_score = min(len(candidate_prices) / 1000, 1.0)  # 4년 기준 정규화
+            
+            # 우선순위 점수 (리스트에서 앞에 있을수록 높은 점수)
+            priority_score = (len(candidates) - candidates.index(candidate)) / len(candidates)
+            
+            # 복합 점수 계산 (우선순위를 더 중요하게 반영)
+            composite_score = (priority_score * 0.4) + (length_score * 0.3) + (data_completeness * 0.2) + (avg_correlation * 0.1)
+            
+            best_candidates.append({
+                'ticker': candidate,
+                'data': candidate_prices,
+                'correlation': avg_correlation,
+                'length_score': length_score,
+                'completeness': data_completeness,
+                'priority_score': priority_score,
+                'composite_score': composite_score
+            })
+            
         except Exception as e:
+            print(f"Error processing candidate {candidate}: {str(e)}")
             continue
+    
+    # 4단계: 최고 점수 대체 자산 선택
+    if best_candidates:
+        # 복합 점수 기준 정렬
+        best_candidates.sort(key=lambda x: x['composite_score'], reverse=True)
+        
+        # 가장 좋은 후보 선택
+        best_candidate = best_candidates[0]
+        
+        print(f"Substituting {target_ticker} ({asset_category}) with {best_candidate['ticker']}")
+        print(f"  - Data completeness: {best_candidate['completeness']:.2%}")
+        print(f"  - Data length: {len(best_candidate['data'])} days")
+        print(f"  - Average correlation: {best_candidate['correlation']:.3f}")
+        
+        return best_candidate['ticker'], best_candidate['data']
+    
+    # 5단계: 모든 후보가 실패한 경우 - 카테고리 내 첫 번째 대안 선택
+    for candidate in candidates:
+        try:
+            fallback_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
+            if not fallback_data.empty:
+                fallback_prices = fallback_data['Close'] if 'Close' in fallback_data.columns else fallback_data
+                if len(fallback_prices) > 50:  # 최소 기준 완화
+                    print(f"Using fallback substitute {candidate} for {target_ticker} (category: {asset_category})")
+                    return candidate, fallback_prices
+        except:
+            continue
+    
+    return None, None
 
-    return best_candidate, best_data
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     """데이터 공백 채우기"""
@@ -236,7 +351,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     for ticker in missing_tickers:
         st.write(f"🔍 {ticker} 대체 자산 검색 중...")
 
-        substitute_ticker, substitute_data = find_best_substitute(
+        substitute_ticker, substitute_data = find_best_substitute_enhanced(
             ticker, available_data, start_date, end_date
         )
 
@@ -612,54 +727,55 @@ def main():
         unsafe_allow_html=True
     )
     
-    # 앱 설명 섹션을 컬럼으로 분할
-    col1, col2 = st.columns([3, 1])  # 3:1 비율로 분할
-    
-    with col1:
-        # 앱 설명 섹션
-        st.markdown("### 📋 앱 소개")
-        st.markdown("""
-        **이 앱은 데이터 공백 자동 보완 기능을 갖춘 모멘텀 기반 포트폴리오 백테스팅 도구입니다.**
-        #### 🎯 주요 기능
-        - **자산 선택**: 원하는 ETF, 주식 등 자유로운 투자 유니버스 설정
-        - **파라미터 조정**: 모멘텀 기간, 선택 종목 수, 최대/최소 가중치 등 전략 파라미터 조정
-        - **기간 설정**: 백테스팅 분석 기간을 자유롭게 설정 가능
-        - **모멘텀 전략**: 과거 수익률을 기준으로 상위 종목을 선별하여 포트폴리오를 구성
-        - **리스크 조정**: 역변동성 가중치와 모멘텀 스코어를 결합한 스마트 포트폴리오 최적화
-        - **월별 리밸런싱**: 매월 포트폴리오를 재조정하여 최적의 자산 구성 유지
-        #### ✔️ 분석 결과 제공
-        - **성과 지표**: 수익률, 변동성, 샤프 비율, 최대 낙폭 등 주요 투자 지표 분석
-        - **벤치마크 비교**: S&P 500, Nasdaq 100, MSCI ACWI 지수와의 성과 비교
-        - **시각화**: 누적 수익률, 리스크 분석, 포트폴리오 구성 변화 등 다양한 차트 제공
-        #### 🔧 데이터 공백 보완 방식
-        - **유사 종목 매핑**: 선택한 종목의 과거 데이터가 부족한 경우, 유사한 특성을 가진 대체 종목으로 자동 보완
-        - **상관관계 분석**: 기존 종목과 높은 상관관계를 가진 대체 종목 선택
-        - **자산 분류별 대체**: 성장주, 가치주, 섹터별 등 자산 특성에 따른 체계적 대체
-        """)
-    with col2:
-        st.markdown("""
-        <div style="
-            height: 600px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 15px;
-            margin-top: 40px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
-        ">
+    # 앱 설명 섹션을 expander로 감싸기
+    with st.expander("📋 앱 소개", expanded=False):
+        # 앱 설명 섹션을 컬럼으로 분할
+        col1, col2 = st.columns([3, 1])  # 3:1 비율로 분할
+        
+        with col1:
+            st.markdown("""
+            **이 앱은 데이터 공백 자동 보완 기능을 갖춘 모멘텀 기반 포트폴리오 백테스팅 도구입니다.**
+            #### 🎯 주요 기능
+            - **자산 선택**: 원하는 ETF, 주식 등 자유로운 투자 유니버스 설정
+            - **파라미터 조정**: 모멘텀 기간, 선택 종목 수, 최대/최소 가중치 등 전략 파라미터 조정
+            - **기간 설정**: 백테스팅 분석 기간을 자유롭게 설정 가능
+            - **모멘텀 전략**: 과거 수익률을 기준으로 상위 종목을 선별하여 포트폴리오를 구성
+            - **리스크 조정**: 역변동성 가중치와 모멘텀 스코어를 결합한 스마트 포트폴리오 최적화
+            - **월별 리밸런싱**: 매월 포트폴리오를 재조정하여 최적의 자산 구성 유지
+            #### ✔️ 분석 결과 제공
+            - **성과 지표**: 수익률, 변동성, 샤프 비율, 최대 낙폭 등 주요 투자 지표 분석
+            - **벤치마크 비교**: S&P 500, Nasdaq 100, MSCI ACWI 지수와의 성과 비교
+            - **시각화**: 누적 수익률, 리스크 분석, 포트폴리오 구성 변화 등 다양한 차트 제공
+            #### 🔧 데이터 공백 보완 방식
+            - **유사 종목 매핑**: 선택한 종목의 과거 데이터가 부족한 경우, 유사한 특성을 가진 대체 종목으로 자동 보완
+            - **상관관계 분석**: 기존 종목과 높은 상관관계를 가진 대체 종목 선택
+            - **자산 분류별 대체**: 성장주, 가치주, 섹터별 등 자산 특성에 따른 체계적 대체
+            """)
+        
+        with col2:
+            st.markdown("""
             <div style="
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cdefs%3E%3Cpattern id=%22grain%22 width=%22100%22 height=%22100%22 patternUnits=%22userSpaceOnUse%22%3E%3Ccircle cx=%2225%22 cy=%2225%22 r=%221%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2275%22 cy=%2275%22 r=%221%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2275%22 cy=%2225%22 r=%220.5%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2225%22 cy=%2275%22 r=%220.5%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=%22100%22 height=%22100%22 fill=%22url(%23grain)%22/%3E%3C/svg%3E');
-            "></div>
-        </div>
-        """, unsafe_allow_html=True)
+                height: 600px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 15px;
+                margin-top: 40px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cdefs%3E%3Cpattern id=%22grain%22 width=%22100%22 height=%22100%22 patternUnits=%22userSpaceOnUse%22%3E%3Ccircle cx=%2225%22 cy=%2225%22 r=%221%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2275%22 cy=%2275%22 r=%221%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2275%22 cy=%2225%22 r=%220.5%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3Ccircle cx=%2225%22 cy=%2275%22 r=%220.5%22 fill=%22%23ffffff%22 opacity=%220.1%22/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=%22100%22 height=%22100%22 fill=%22url(%23grain)%22/%3E%3C/svg%3E');
+                "></div>
+            </div>
+            """, unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -669,12 +785,13 @@ def main():
     # 기본 티커 목록
     default_tickers = [
         'XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU',
-        'SPYV', 'SPYG', 'VYM', 'RSP', 'USMV', 'SPMO', 'SPY', 'QQQ', 'IDEV', 'IEMG', 'ACWI'
+        'SPYV', 'SPYG', 'VYM', 'RSP', 'USMV', 'SPMO', 'SPY', 'QQQ', 'IDEV', 'IEMG', 'ACWI', 'PTF', 'GRID', 'BOTZ', 'SMH', 'ITB', 
+        'EWJ', 'IEUR', 'IXUS', 'ACWX', 'EFA', 'VGK', 'FEZ', 'MCHI', 'EPP' 
     ]
     
     tickers_input = st.sidebar.text_area(
         "종목 티커 (쉼표로 구분)",
-        value=", ".join(default_tickers[:25]),
+        value=", ".join(default_tickers[:35]),
         help="예시: SPY, QQQ, XLK",
         height=70
     )
@@ -708,7 +825,7 @@ def main():
     with col1:
         start_date = st.date_input(
             "시작 날짜",
-            value=dt.date(2010, 1, 1),
+            value=dt.date(2011, 1, 1),
             min_value=dt.date(2005, 1, 1),
             max_value=dt.date.today()
         )

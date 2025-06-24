@@ -723,7 +723,7 @@ def main():
     )
     
     # 앱 설명 섹션을 expander로 감싸기
-    with st.expander("📋 앱 소개", expanded=False):
+    with st.expander("###📋 앱 소개", expanded=False):
         # 앱 설명 섹션을 컬럼으로 분할
         col1, col2 = st.columns([3, 1])  # 3:1 비율로 분할
         

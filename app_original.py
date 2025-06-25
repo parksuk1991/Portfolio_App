@@ -349,7 +349,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         available_data = pd.DataFrame()
 
     for ticker in missing_tickers:
-        st.write(f"🔍 {ticker} 대체 자산 검색 중...")
+        
 
         substitute_ticker, substitute_data = find_best_substitute_enhanced(
             ticker, available_data, start_date, end_date
@@ -372,7 +372,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                 'method': 'similar_asset'
             }
 
-            st.success(f"✅ {ticker} → {substitute_ticker} 대체 완료")
+            
 
             # available_data 업데이트
             if len(available_data) == 0:
@@ -786,7 +786,7 @@ def main():
     default_tickers = [
         'XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU',
         'SPYV', 'SPYG', 'VYM', 'RSP', 'USMV', 'SPMO', 'SPY', 'QQQ', 'IDEV', 'IEMG', 'ACWI', 'PTF', 'GRID', 'BOTZ', 'SMH', 'ITB', 
-        'EWJ', 'IEUR', 'IXUS', 'ACWX', 'EFA', 'VGK', 'FEZ', 'MCHI', 'EPP' 
+        'EWJ', 'IXUS', 'VGK', 'MCHI', 'EPP' 
     ]
     
     tickers_input = st.sidebar.text_area(

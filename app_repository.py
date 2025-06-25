@@ -149,6 +149,51 @@ CATEGORY_PRIORITY = {
     'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
 }
 
+
+
+# S&P 500 티커 리스트 가져오기 (캐시)
+@st.cache_data
+def get_sp500_tickers():
+    url = 'https://datahub.io/core/s-and-p-500-companies/r/constituents.csv'
+    df = pd.read_csv(url)
+    tickers = df['Symbol'].unique().tolist()
+    # yfinance에서 . 대신 - 사용
+    tickers = [t.replace('.', '-') for t in tickers]
+    return tickers
+
+# 미국 주요 ETF 리스트 (원하는대로 추가/수정 가능)
+US_MAJOR_ETFS = [
+    # Broad market
+    'SPY', 'IVV', 'VOO', 'VTI', 'ITOT', 'SPLG', 'SCHB',
+    # Sectors
+    'XLK', 'XLF', 'XLV', 'XLE', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLC',
+    # Style
+    'SPYG', 'SPYV', 'VUG', 'VTV', 'IWF', 'IWD', 'MGK', 'VYM', 'DVY',
+    # Size
+    'IWM', 'VB', 'IJR', 'MDY',
+    # International
+    'EFA', 'VEA', 'IEFA', 'ACWX', 'IEMG', 'VWO', 'EEM',
+    # Bonds
+    'AGG', 'BND', 'TLT', 'SHY', 'IEF', 'LQD',
+    # Others (add as needed)
+    'QQQ', 'USMV', 'SPLV', 'MTUM', 'VHT', 'VNQ', 'VPU', 'VDC', 'VDE', 'VFH', 'VGT', 'VCR', 'VBR', 'SCHD'
+]
+
+def is_stock_ticker(ticker):
+    # 알파벳/숫자만 있고, ETF가 아니라고 가정 (좀 더 정교화 필요할 수 있음)
+    # ETF는 주요 ETF 리스트에 있으면 해당, 아니면 주식으로 분류
+    # yfinance로 info 가져와서 'quoteType' 체크해도 됨
+    if ticker in US_MAJOR_ETFS:
+        return False
+    if len(ticker) > 5:  # 보통 ETF가 더 길거나, 특수문자
+        return False
+    return ticker.isalpha()
+
+def is_etf_ticker(ticker):
+    return ticker in US_MAJOR_ETFS
+
+
+
 def get_enhanced_asset_classification(ticker):
     """향상된 자산 분류 - 더 세분화된 카테고리"""
     
@@ -159,122 +204,91 @@ def get_enhanced_asset_classification(ticker):
     return 'large_cap_us'  # 기본값
 
 def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.3):
-    """향상된 대체 자산 선택 - 동일 카테고리 내에서만 선택"""
-    
-    # 1단계: 타겟 티커의 카테고리 확인
-    asset_category = get_enhanced_asset_classification(target_ticker)
-    
-    # 2단계: 동일 카테고리 내 후보 자산들 (우선순위 순서)
-    category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
-    
-    # 타겟 티커 제외
-    candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
-    
+    """
+    - 카테고리 매칭/ETF 매칭/주식 매칭 및 상관관계 최적 선택
+    """
+    # 1. ETF 여부/주식 여부 판별
+    sp500_tickers = get_sp500_tickers()
+    if is_etf_ticker(target_ticker):
+        # ETF라면 미국 주요 ETF 리스트에서 본인 제외
+        candidates = [t for t in US_MAJOR_ETFS if t != target_ticker]
+    elif target_ticker in sp500_tickers or is_stock_ticker(target_ticker):
+        # S&P500 주식이라면 S&P500 내에서 본인 제외
+        candidates = [t for t in sp500_tickers if t != target_ticker]
+    else:
+        # 기존 자산 분류/카테고리 로직 사용 (생략 가능)
+        asset_category = get_enhanced_asset_classification(target_ticker)
+        category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
+        candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
+
+    # 후보가 없으면 종료
     if not candidates:
-        print(f"Warning: No substitute candidates found for {target_ticker} in category {asset_category}")
         return None, None
-    
-    # 3단계: 각 후보의 데이터 품질 및 적합성 평가
-    best_candidates = []
-    
-    for candidate in candidates:
+
+    # 타겟 데이터 로드
+    try:
+        target_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
+        target_close = target_data['Close'] if 'Close' in target_data.columns else target_data
+    except Exception as e:
+        print(f"Failed to download target data for {target_ticker}: {str(e)}")
+        return None, None
+
+    best_corr = -2
+    best_ticker = None
+    best_data = None
+
+    # 후보 중 상관관계 최고 찾기
+    for cand in candidates:
         try:
-            # 후보 데이터 로드
-            candidate_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
-            
-            if candidate_data.empty:
-                continue
-                
-            candidate_prices = candidate_data['Close'] if 'Close' in candidate_data.columns else candidate_data
-            
-            if len(candidate_prices) < 100:  # 최소 데이터 길이 요구사항 완화
-                continue
-            
-            # 데이터 품질 검사
-            data_completeness = candidate_prices.count() / len(candidate_prices)
-            if data_completeness < 0.7:  # 70% 이상 데이터 완전성
-                continue
-            
-            correlation_scores = []
-            
-            if len(available_data.columns) > 0:
-                # 공통 기간 찾기
-                common_period = candidate_prices.index.intersection(available_data.index)
-                
-                if len(common_period) > 50:  # 최소 겹치는 기간 완화
-                    candidate_returns = candidate_prices.loc[common_period].pct_change().dropna()
-                    
-                    for existing_asset in available_data.columns:
-                        existing_returns = available_data[existing_asset].loc[common_period].pct_change().dropna()
-                        
-                        # 공통 인덱스
-                        common_idx = candidate_returns.index.intersection(existing_returns.index)
-                        
-                        if len(common_idx) > 30:  # 최소 공통 데이터 완화
-                            try:
-                                corr, p_value = pearsonr(
-                                    candidate_returns.loc[common_idx].fillna(0),
-                                    existing_returns.loc[common_idx].fillna(0)
-                                )
-                                
-                                if not np.isnan(corr):
-                                    correlation_scores.append(abs(corr))
-                            except:
-                                continue
-            
-            # 평균 상관관계 계산
-            avg_correlation = np.mean(correlation_scores) if correlation_scores else 0
-            
-            # 데이터 길이 점수
-            length_score = min(len(candidate_prices) / 1000, 1.0)  # 4년 기준 정규화
-            
-            # 우선순위 점수 (리스트에서 앞에 있을수록 높은 점수)
-            priority_score = (len(candidates) - candidates.index(candidate)) / len(candidates)
-            
-            # 복합 점수 계산 (우선순위를 더 중요하게 반영)
-            composite_score = (priority_score * 0.4) + (length_score * 0.3) + (data_completeness * 0.2) + (avg_correlation * 0.1)
-            
-            best_candidates.append({
-                'ticker': candidate,
-                'data': candidate_prices,
-                'correlation': avg_correlation,
-                'length_score': length_score,
-                'completeness': data_completeness,
-                'priority_score': priority_score,
-                'composite_score': composite_score
-            })
-            
+            cand_data = yf.download(cand, start=start_date, end=end_date, progress=False)
+            if cand_data.empty: continue
+            cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
+            # 데이터 길이 충분(100일 이상)일 경우 우선 반환
+            if len(cand_close) >= 100:
+                # 상관관계 계산
+                common_idx = target_close.index.intersection(cand_close.index)
+                if len(common_idx) < 30: continue
+                target_ret = target_close.loc[common_idx].pct_change().dropna()
+                cand_ret = cand_close.loc[common_idx].pct_change().dropna()
+                idx = target_ret.index.intersection(cand_ret.index)
+                if len(idx) < 20: continue
+                corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
+                if pd.notnull(corr) and abs(corr) > best_corr:
+                    best_corr = abs(corr)
+                    best_ticker = cand
+                    best_data = cand_close
+            else:
+                # 데이터 부족시에도 상관관계로 순위
+                common_idx = target_close.index.intersection(cand_close.index)
+                if len(common_idx) < 20: continue
+                target_ret = target_close.loc[common_idx].pct_change().dropna()
+                cand_ret = cand_close.loc[common_idx].pct_change().dropna()
+                idx = target_ret.index.intersection(cand_ret.index)
+                if len(idx) < 10: continue
+                corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
+                if pd.notnull(corr) and abs(corr) > best_corr:
+                    best_corr = abs(corr)
+                    best_ticker = cand
+                    best_data = cand_close
         except Exception as e:
-            print(f"Error processing candidate {candidate}: {str(e)}")
             continue
-    
-    # 4단계: 최고 점수 대체 자산 선택
-    if best_candidates:
-        # 복합 점수 기준 정렬
-        best_candidates.sort(key=lambda x: x['composite_score'], reverse=True)
-        
-        # 가장 좋은 후보 선택
-        best_candidate = best_candidates[0]
-        
-        print(f"Substituting {target_ticker} ({asset_category}) with {best_candidate['ticker']}")
-        print(f"  - Data completeness: {best_candidate['completeness']:.2%}")
-        print(f"  - Data length: {len(best_candidate['data'])} days")
-        print(f"  - Average correlation: {best_candidate['correlation']:.3f}")
-        
-        return best_candidate['ticker'], best_candidate['data']
-    
-    # 5단계: 모든 후보가 실패한 경우 - 카테고리 내 첫 번째 대안 선택
-    for candidate in candidates:
+
+    # 상관관계 최고 티커 반환
+    if best_ticker is not None:
+        print(f"Substituting {target_ticker} with {best_ticker} (correlation={best_corr:.3f})")
+        return best_ticker, best_data
+
+    # 모든 후보 실패시 fallback: 데이터 길이만 기준
+    for cand in candidates:
         try:
-            fallback_data = yf.download(candidate, start=start_date, end=end_date, progress=False)
+            fallback_data = yf.download(cand, start=start_date, end=end_date, progress=False)
             if not fallback_data.empty:
                 fallback_prices = fallback_data['Close'] if 'Close' in fallback_data.columns else fallback_data
-                if len(fallback_prices) > 50:  # 최소 기준 완화
-                    print(f"Using fallback substitute {candidate} for {target_ticker} (category: {asset_category})")
-                    return candidate, fallback_prices
+                if len(fallback_prices) > 50:
+                    print(f"Using fallback substitute {cand} for {target_ticker}")
+                    return cand, fallback_prices
         except:
             continue
-    
     return None, None
 
 

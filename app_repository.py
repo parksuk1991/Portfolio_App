@@ -205,18 +205,17 @@ def get_enhanced_asset_classification(ticker):
 
 def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.3):
     """
-    - 카테고리 매칭/ETF 매칭/주식 매칭 및 상관관계 최적 선택
+    - 타겟이 ETF면 미국 주요 ETF에서, 주식이면 S&P500 종목에서, 그 외엔 카테고리 리스트에서
+    - 상관관계가 가장 높은 후보를 대체로 선택
     """
-    # 1. ETF 여부/주식 여부 판별
+    # 1. 후보군 선정
     sp500_tickers = get_sp500_tickers()
     if is_etf_ticker(target_ticker):
-        # ETF라면 미국 주요 ETF 리스트에서 본인 제외
         candidates = [t for t in US_MAJOR_ETFS if t != target_ticker]
     elif target_ticker in sp500_tickers or is_stock_ticker(target_ticker):
-        # S&P500 주식이라면 S&P500 내에서 본인 제외
         candidates = [t for t in sp500_tickers if t != target_ticker]
     else:
-        # 기존 자산 분류/카테고리 로직 사용 (생략 가능)
+        # 카테고리 기반 후보군 로직 (예시)
         asset_category = get_enhanced_asset_classification(target_ticker)
         category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
         candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
@@ -225,9 +224,16 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     if not candidates:
         return None, None
 
+    # 후보가 너무 많으면 10개 랜덤 샘플 (속도 개선)
+    SAMPLE_N = 10
+    if len(candidates) > SAMPLE_N:
+        candidates = random.sample(candidates, SAMPLE_N)
+
     # 타겟 데이터 로드
     try:
         target_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
+        if target_data.empty:
+            return None, None
         target_close = target_data['Close'] if 'Close' in target_data.columns else target_data
     except Exception as e:
         print(f"Failed to download target data for {target_ticker}: {str(e)}")
@@ -237,34 +243,38 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     best_ticker = None
     best_data = None
 
-    # 후보 중 상관관계 최고 찾기
+    # 2. 후보 중 상관관계 최고 찾기
     for cand in candidates:
         try:
             cand_data = yf.download(cand, start=start_date, end=end_date, progress=False)
-            if cand_data.empty: continue
+            if cand_data.empty:
+                continue
             cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
-            # 데이터 길이 충분(100일 이상)일 경우 우선 반환
+            # 데이터 길이 충분(100일 이상)일 경우 우선 상관관계 계산
             if len(cand_close) >= 100:
-                # 상관관계 계산
                 common_idx = target_close.index.intersection(cand_close.index)
-                if len(common_idx) < 30: continue
+                if len(common_idx) < 30:
+                    continue
                 target_ret = target_close.loc[common_idx].pct_change().dropna()
                 cand_ret = cand_close.loc[common_idx].pct_change().dropna()
                 idx = target_ret.index.intersection(cand_ret.index)
-                if len(idx) < 20: continue
+                if len(idx) < 20:
+                    continue
                 corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
                 if pd.notnull(corr) and abs(corr) > best_corr:
                     best_corr = abs(corr)
                     best_ticker = cand
                     best_data = cand_close
             else:
-                # 데이터 부족시에도 상관관계로 순위
+                # 데이터 부족시에도 상관관계 비교
                 common_idx = target_close.index.intersection(cand_close.index)
-                if len(common_idx) < 20: continue
+                if len(common_idx) < 20:
+                    continue
                 target_ret = target_close.loc[common_idx].pct_change().dropna()
                 cand_ret = cand_close.loc[common_idx].pct_change().dropna()
                 idx = target_ret.index.intersection(cand_ret.index)
-                if len(idx) < 10: continue
+                if len(idx) < 10:
+                    continue
                 corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
                 if pd.notnull(corr) and abs(corr) > best_corr:
                     best_corr = abs(corr)
@@ -273,12 +283,12 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
         except Exception as e:
             continue
 
-    # 상관관계 최고 티커 반환
+    # 3. 상관관계 최고 티커 반환
     if best_ticker is not None:
         print(f"Substituting {target_ticker} with {best_ticker} (correlation={best_corr:.3f})")
         return best_ticker, best_data
 
-    # 모든 후보 실패시 fallback: 데이터 길이만 기준
+    # 4. 모든 후보 실패시 fallback: 데이터 길이만 기준
     for cand in candidates:
         try:
             fallback_data = yf.download(cand, start=start_date, end=end_date, progress=False)
@@ -291,13 +301,11 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
             continue
     return None, None
 
-
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     """데이터 공백 채우기"""
 
     st.info("📊 데이터 로딩 및 공백 분석 중...")
 
-    # 원본 데이터 로드 시도
     original_data = {}
     missing_tickers = []
     data_info = {}
@@ -305,16 +313,12 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     for ticker in tickers:
         try:
             data = yf.download(ticker, start=start_date, end=end_date)['Close']
-
             if isinstance(data, pd.Series):
                 data = data.to_frame(name=ticker)
-
             # 데이터 품질 확인
             data_start = data.first_valid_index()
             data_end = data.last_valid_index()
             data_length = len(data.dropna())
-
-            # 목표 시작일과 실제 데이터 시작일 비교
             target_start = pd.to_datetime(start_date)
 
             if data_start is None or data_length < 50:
@@ -341,10 +345,13 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             missing_tickers.append(ticker)
             st.error(f"❌ {ticker}: 데이터 로드 실패 - {str(e)}")
 
+    # --- 여기서 수정: 빈 DataFrame/Series는 concat에서 제외
+    valid_data = {k: v for k, v in original_data.items() if v is not None and not v.empty}
     if not fill_gaps or len(missing_tickers) == 0:
-        if len(original_data) > 0:
-            combined_data = pd.concat(original_data.values(), axis=1)
-            combined_data.columns = original_data.keys()
+        if len(valid_data) > 0:
+            combined_data = pd.concat(valid_data.values(), axis=1)
+            combined_data.columns = list(valid_data.keys())
+            combined_data = combined_data.dropna(axis=1, how='all')
             return combined_data.resample('ME').last().dropna(), {}
         else:
             return None, {}

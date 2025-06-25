@@ -163,36 +163,45 @@ def get_sp500_tickers():
     return tickers
 
 # 미국 주요 ETF 리스트 (원하는대로 추가/수정 가능)
-US_MAJOR_ETFS = [
-    # Broad market
-    'SPY', 'IVV', 'VOO', 'VTI', 'ITOT', 'SPLG', 'SCHB',
-    # Sectors
-    'XLK', 'XLF', 'XLV', 'XLE', 'XLI', 'XLY', 'XLP', 'XLU', 'XLB', 'XLC',
-    # Style
-    'SPYG', 'SPYV', 'VUG', 'VTV', 'IWF', 'IWD', 'MGK', 'VYM', 'DVY',
-    # Size
-    'IWM', 'VB', 'IJR', 'MDY',
-    # International
-    'EFA', 'VEA', 'IEFA', 'ACWX', 'IEMG', 'VWO', 'EEM',
-    # Bonds
-    'AGG', 'BND', 'TLT', 'SHY', 'IEF', 'LQD',
-    # Others (add as needed)
-    'QQQ', 'USMV', 'SPLV', 'MTUM', 'VHT', 'VNQ', 'VPU', 'VDC', 'VDE', 'VFH', 'VGT', 'VCR', 'VBR', 'SCHD'
-]
+US_MAJOR_ETFS = ['VOO', 'IVV', 'VTI', 'SPY', 'ITOT', 'SPTM', 'SPLG'
+   'VUG', 'IVW', 'QQQ', 'MGK', 'SPYG', 'VONG', 'IWF',
+   'VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM',
+ 'VO', 'IJH', 'MDY', 'IVOO', 'SPMD', 'IWR', 'VMOT',
+  'VB', 'IJR', 'IWM', 'VTWO', 'SPSM', 'VBR', 'IWN',
+'EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF',
+'VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV',
+'VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV',
+'XLC','XTL', 'IYZ',
+'VHT', 'XLV', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH',
+'VFH', 'XLF', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI',
+'VDE', 'XLE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE',
+'VAW', 'XLB', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB',
+'VIS', 'XLI', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN',
+'VPU', 'XLU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU',
+ 'VCR', 'XLY', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ',
+'VDC', 'XLP', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI',
+'VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF',
+'BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA',
+'DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA',
+'USMV', 'SPLV', 'EFAV', 'IDLV',
+'SPMO', 'MTUM', 'IMTM', 'PDP']
 
-def is_stock_ticker(ticker):
+#def is_stock_ticker(ticker):
     # 알파벳/숫자만 있고, ETF가 아니라고 가정 (좀 더 정교화 필요할 수 있음)
     # ETF는 주요 ETF 리스트에 있으면 해당, 아니면 주식으로 분류
     # yfinance로 info 가져와서 'quoteType' 체크해도 됨
-    if ticker in US_MAJOR_ETFS:
-        return False
-    if len(ticker) > 5:  # 보통 ETF가 더 길거나, 특수문자
-        return False
-    return ticker.isalpha()
+    #if ticker in US_MAJOR_ETFS:
+     #   return False
+    #if len(ticker) > 5:  # 보통 ETF가 더 길거나, 특수문자
+    #    return False
+    #return ticker.isalpha()
 
 def is_etf_ticker(ticker):
     return ticker in US_MAJOR_ETFS
-
+    
+def is_stock_ticker(ticker):
+    sp500_tickers = get_sp500_tickers()
+    return ticker in sp500_tickers
 
 
 def get_enhanced_asset_classification(ticker):
@@ -204,29 +213,22 @@ def get_enhanced_asset_classification(ticker):
     
     return 'large_cap_us'  # 기본값
 
-def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.3):
-    """
-    - 타겟이 ETF면 미국 주요 ETF에서, 주식이면 S&P500 종목에서, 그 외엔 카테고리 리스트에서
-    - 상관관계가 가장 높은 후보를 대체로 선택
-    """
-    # 1. 후보군 선정
+def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.5):
     sp500_tickers = get_sp500_tickers()
     if is_etf_ticker(target_ticker):
         candidates = [t for t in US_MAJOR_ETFS if t != target_ticker]
-    elif target_ticker in sp500_tickers or is_stock_ticker(target_ticker):
+    elif is_stock_ticker(target_ticker):
         candidates = [t for t in sp500_tickers if t != target_ticker]
     else:
-        # 카테고리 기반 후보군 로직 (예시)
         asset_category = get_enhanced_asset_classification(target_ticker)
         category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
         candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
 
-    # 후보가 없으면 종료
     if not candidates:
         return None, None
 
-    # 후보가 너무 많으면 10개 랜덤 샘플 (속도 개선)
-    SAMPLE_N = 10
+    # 후보군이 너무 많으면 랜덤으로 20개만 확인
+    SAMPLE_N = 20
     if len(candidates) > SAMPLE_N:
         candidates = random.sample(candidates, SAMPLE_N)
 
@@ -243,64 +245,37 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     best_corr = -2
     best_ticker = None
     best_data = None
+    min_correlation = 0.5  # 반드시 0.5 이상으로 제한
 
-    # 2. 후보 중 상관관계 최고 찾기
     for cand in candidates:
         try:
             cand_data = yf.download(cand, start=start_date, end=end_date, progress=False)
             if cand_data.empty:
                 continue
             cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
-            # 데이터 길이 충분(100일 이상)일 경우 우선 상관관계 계산
-            if len(cand_close) >= 100:
-                common_idx = target_close.index.intersection(cand_close.index)
-                if len(common_idx) < 30:
-                    continue
-                target_ret = target_close.loc[common_idx].pct_change().dropna()
-                cand_ret = cand_close.loc[common_idx].pct_change().dropna()
-                idx = target_ret.index.intersection(cand_ret.index)
-                if len(idx) < 20:
-                    continue
-                corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
-                if pd.notnull(corr) and abs(corr) > best_corr:
-                    best_corr = abs(corr)
-                    best_ticker = cand
-                    best_data = cand_close
-            else:
-                # 데이터 부족시에도 상관관계 비교
-                common_idx = target_close.index.intersection(cand_close.index)
-                if len(common_idx) < 20:
-                    continue
-                target_ret = target_close.loc[common_idx].pct_change().dropna()
-                cand_ret = cand_close.loc[common_idx].pct_change().dropna()
-                idx = target_ret.index.intersection(cand_ret.index)
-                if len(idx) < 10:
-                    continue
-                corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
-                if pd.notnull(corr) and abs(corr) > best_corr:
-                    best_corr = abs(corr)
-                    best_ticker = cand
-                    best_data = cand_close
+            common_idx = target_close.index.intersection(cand_close.index)
+            if len(common_idx) < 30:
+                continue
+            target_ret = target_close.loc[common_idx].pct_change().dropna()
+            cand_ret = cand_close.loc[common_idx].pct_change().dropna()
+            idx = target_ret.index.intersection(cand_ret.index)
+            if len(idx) < 20:
+                continue
+            corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
+            if pd.notnull(corr) and abs(corr) > best_corr and abs(corr) >= min_correlation:
+                best_corr = abs(corr)
+                best_ticker = cand
+                best_data = cand_close
         except Exception as e:
             continue
 
-    # 3. 상관관계 최고 티커 반환
     if best_ticker is not None:
         print(f"Substituting {target_ticker} with {best_ticker} (correlation={best_corr:.3f})")
         return best_ticker, best_data
 
-    # 4. 모든 후보 실패시 fallback: 데이터 길이만 기준
-    for cand in candidates:
-        try:
-            fallback_data = yf.download(cand, start=start_date, end=end_date, progress=False)
-            if not fallback_data.empty:
-                fallback_prices = fallback_data['Close'] if 'Close' in fallback_data.columns else fallback_data
-                if len(fallback_prices) > 50:
-                    print(f"Using fallback substitute {cand} for {target_ticker}")
-                    return cand, fallback_prices
-        except:
-            continue
+    # fallback: 0.5 이상 상관관계가 아예 없으면 None 반환
     return None, None
+
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     """데이터 공백 채우기"""

@@ -84,6 +84,14 @@ def is_stock_ticker(ticker):
     sp500_tickers = get_sp500_tickers()
     return ticker in sp500_tickers
 
+def ticker_type_str(ticker):
+    if is_etf_ticker(ticker):
+        return "[ETF]"
+    elif is_stock_ticker(ticker):
+        return "[주식]"
+    else:
+        return "[기타]"
+
 def get_etf_category(ticker):
     for category, etfs in CATEGORY_PRIORITY.items():
         if ticker in etfs:
@@ -92,7 +100,6 @@ def get_etf_category(ticker):
 
 def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.5):
     sp500_tickers = get_sp500_tickers()
-    # ETF인 경우: 같은 카테고리 내 or 전체 ETF 중 후보
     if is_etf_ticker(target_ticker):
         category = get_etf_category(target_ticker)
         if category:
@@ -107,12 +114,13 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     if not candidates:
         return None, None
 
-    # 후보 개수 제한 (카테고리 내 후보면 대부분 2~8개이므로 제한 의미 없음, 전체 ETF는 20개 샘플)
-    SAMPLE_N = 20
-    if len(candidates) > SAMPLE_N:
-        candidates = random.sample(candidates, SAMPLE_N)
+    # 후보는 랜덤 샘플링 없이 전부 시도 (특히 카테고리 내!)
+    # 카테고리 없어서 전체 ETF일 때만 20개 샘플 (성능 때문에)
+    if not get_etf_category(target_ticker) and is_etf_ticker(target_ticker):
+        if len(candidates) > 20:
+            candidates = random.sample(candidates, 20)
 
-    # 타겟 데이터 로드
+    # 타겟 데이터
     try:
         target_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
         if target_data.empty:
@@ -134,12 +142,12 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 continue
             cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
             common_idx = target_close.index.intersection(cand_close.index)
-            if len(common_idx) < 15:  # 완화: 30→15
+            if len(common_idx) < 10:
                 continue
             target_ret = target_close.loc[common_idx].pct_change().dropna()
             cand_ret = cand_close.loc[common_idx].pct_change().dropna()
             idx = target_ret.index.intersection(cand_ret.index)
-            if len(idx) < 10:  # 완화: 20→10
+            if len(idx) < 7:
                 continue
             corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
             checked_candidates.append((cand, cand_close, corr, len(idx)))
@@ -155,14 +163,13 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
         print(f"Substituting {target_ticker} with {best_ticker} (correlation={best_corr:.3f})")
         return best_ticker, best_data
 
-    # (2) 상관관계 0.5 미만이라도 데이터가 제일 많은 후보로라도 대체 (카테고리/전체 ETF 모두에 대해)
+    # (2) 상관관계 0.5 미만이어도 데이터가 제일 많은 후보로라도 대체
     if checked_candidates:
         checked_candidates.sort(key=lambda tup: (tup[3], abs(tup[2]) if tup[2] is not None else 0), reverse=True)
         cand, cand_close, corr, overlap = checked_candidates[0]
         print(f"Fallback substitute {target_ticker} → {cand} (data points overlap={overlap}, corr={corr})")
         return cand, cand_close
 
-    # (3) 모든 후보 실패시 (데이터 자체가 없는 경우) None 반환
     return None, None
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
@@ -182,12 +189,13 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             data_length = len(data.dropna())
             target_start = pd.to_datetime(start_date)
 
+            type_tag = ticker_type_str(ticker)
             if data_start is None or data_length < 50:
                 missing_tickers.append(ticker)
-                st.warning(f"❌ {ticker}: 데이터 부족 (길이: {data_length})")
+                st.warning(f"❌ {ticker} {type_tag}: 데이터 부족 (길이: {data_length})")
             elif data_start > target_start + pd.DateOffset(years=1):
                 missing_tickers.append(ticker)
-                st.warning(f"⚠️ {ticker}: 시작일 부족 (목표: {target_start.strftime('%Y-%m')}, 실제: {data_start.strftime('%Y-%m')})")
+                st.warning(f"⚠️ {ticker} {type_tag}: 시작일 부족 (목표: {target_start.strftime('%Y-%m')}, 실제: {data_start.strftime('%Y-%m')})")
                 data_info[ticker] = {
                     'original_data': data,
                     'start_gap': (data_start - target_start).days,
@@ -200,10 +208,11 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                     'start_gap': 0,
                     'needs_filling': False
                 }
-                st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
+                st.success(f"✅ {ticker} {type_tag}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
         except Exception as e:
+            type_tag = ticker_type_str(ticker)
             missing_tickers.append(ticker)
-            st.error(f"❌ {ticker}: 데이터 로드 실패 - {str(e)}")
+            st.error(f"❌ {ticker} {type_tag}: 데이터 로드 실패 - {str(e)}")
 
     valid_data = {k: v for k, v in original_data.items() if v is not None and not v.empty}
     if not fill_gaps or len(missing_tickers) == 0:
@@ -230,6 +239,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         substitute_ticker, substitute_data = find_best_substitute_enhanced(
             ticker, available_data, start_date, end_date
         )
+        type_tag = ticker_type_str(ticker)
         if substitute_ticker and substitute_data is not None:
             if isinstance(substitute_data, pd.Series):
                 substitute_data = substitute_data.to_frame(name=substitute_ticker)
@@ -246,8 +256,9 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                 available_data = substitute_df
             else:
                 available_data = pd.concat([available_data, substitute_df], axis=1)
+            st.success(f"🔄 {ticker} {type_tag}: 대체 자산 {substitute_ticker}로 대체 성공")
         else:
-            st.error(f"❌ {ticker}: 적절한 대체 자산을 찾을 수 없습니다.")
+            st.error(f"❌ {ticker} {type_tag}: 적절한 대체 자산을 찾을 수 없습니다.")
 
     if len(enhanced_data) > 0:
         final_data = pd.concat(enhanced_data.values(), axis=1)
@@ -280,7 +291,6 @@ def load_benchmark_data(ticker, start_date, end_date):
     except Exception as e:
         st.error(f"벤치마크 데이터 로드 중 오류 발생: {str(e)}")
         return None
-
 
 def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=100):
     """가중치 조정 함수"""

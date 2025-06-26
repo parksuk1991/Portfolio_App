@@ -42,89 +42,6 @@ BENCHMARK_OPTIONS = {
 }
 
 # 유사 자산 매핑
-SIMILAR_ASSETS_MAP = {
-    # 섹터 ETF 매핑
-    'XLC': ['XTL', 'IYZ', 'VNQ'],  # Communication Services -> Telecom/Tech/REITs
-    'XLY': ['RTH', 'XRT', 'VCR'],  # Consumer Discretionary -> Retail
-    'XLP': ['VDC', 'PBJ', 'SZK'],  # Consumer Staples
-    'XLE': ['VDE', 'IYE', 'DIG'],  # Energy
-    'XLF': ['VFH', 'IYF', 'KBE'],  # Financials
-    'XLV': ['VHT', 'IYH', 'PJP'],  # Healthcare
-    'XLI': ['VIS', 'IYJ', 'PPA'],  # Industrials
-    'XLB': ['VAW', 'IYM', 'SLX'],  # Materials
-    'XLK': ['VGT', 'IYW', 'QQQ'],  # Technology
-    'XLU': ['VPU', 'IDU', 'PUI'],  # Utilities
-
-    # 스타일 ETF 매핑
-    'SPYV': ['IVE', 'VTV', 'DVY'],  # S&P 500 Value
-    'SPYG': ['IVW', 'VUG', 'MGK'],  # S&P 500 Growth
-    'VYM': ['DVY', 'VTV', 'SCHD'],  # High Dividend Yield
-    'RSP': ['EQL', 'EWRS', 'SPY'],  # Equal Weight S&P 500
-    'USMV': ['SPLV', 'EFAV', 'SPY'],  # Low Volatility
-    'SPMO': ['MTUM', 'PDP', 'QQQ'],  # Momentum
-
-    # 리전 ETF 매핑
-    'IDEV': ['EFA', 'VEA', 'ACWX'],  # Developed Markets
-    'IEMG': ['EEM', 'VWO', 'SCHE'],  # Emerging Markets
-}
-
-# 대체 자산 풀
-FALLBACK_ASSETS = {
-    'large_cap_growth': ['QQQ', 'VUG', 'IVW'],
-    'large_cap_value': ['VTV', 'IVE', 'DVY'],
-    'small_cap': ['IWM', 'VB', 'IJR'],
-    'international_dev': ['EFA', 'VEA', 'ACWX'],
-    'international_em': ['EEM', 'VWO', 'DEM'],
-    'sectors': ['XLK', 'XLF', 'XLV', 'XLE', 'XLI'],
-    'broad_market': ['SPY', 'VTI', 'ITOT']
-}
-
-def get_asset_classification(ticker):
-    """자산 분류 함수"""
-    growth_etfs = ['SPYG', 'VUG', 'IVW', 'MGK', 'QQQ', 'XLK']
-    value_etfs = ['SPYV', 'VTV', 'IVE', 'DVY', 'VYM']
-    international_etfs = ['IDEV', 'EFA', 'VEA', 'IEMG', 'EEM', 'VWO']
-    sector_etfs = ['XLC', 'XLY', 'XLP', 'XLE', 'XLF', 'XLV', 'XLI', 'XLB', 'XLK', 'XLU']
-
-    if ticker in growth_etfs:
-        return 'large_cap_growth'
-    elif ticker in value_etfs:
-        return 'large_cap_value'
-    elif ticker in international_etfs:
-        return 'international_dev' if ticker in ['IDEV', 'EFA', 'VEA'] else 'international_em'
-    elif ticker in sector_etfs:
-        return 'sectors'
-    else:
-        return 'broad_market'
-
-# 확장된 자산 풀
-EXTENDED_ASSET_POOL = {
-    'large_cap_us': ['SPY', 'VOO', 'IVV', 'VTI', 'ITOT', 'SPTM', 'SPLG'],
-    'large_cap_growth': ['QQQ', 'VUG', 'IVW', 'MGK', 'SPYG', 'VONG', 'IWF'],
-    'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
-    'mid_cap': ['MDY', 'IJH', 'VO', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
-    'small_cap': ['IWM', 'VB', 'IJR', 'VTWO', 'SPSM', 'VBR', 'IWN'],
-    'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
-    'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
-    'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
-    'communications': ['XLC', 'XTL', 'IYZ'],
-    'healthcare': ['XLV', 'VHT', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
-    'financials': ['XLF', 'VFH', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
-    'energy': ['XLE', 'VDE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
-    'materials': ['XLB', 'VAW', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB'],
-    'industrials': ['XLI', 'VIS', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN'],
-    'utilities': ['XLU', 'VPU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU'],
-    'consumer_disc': ['XLY', 'VCR', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ'],
-    'consumer_staples': ['XLP', 'VDC', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI'],
-    'real_estate': ['VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF'],
-    'bonds': ['AGG', 'BND', 'IEFA', 'SCHZ', 'IEF', 'TLT', 'SHY'],
-    'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA'],
-    'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
-    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
-    
-}
-
-# 카테고리별 우선순위 설정 (같은 카테고리 내에서만 대체)
 CATEGORY_PRIORITY = {
     'large_cap_us': ['VOO', 'IVV', 'VTI', 'SPY', 'ITOT', 'SPTM', 'SPLG'],
     'large_cap_growth': ['VUG', 'IVW', 'QQQ', 'MGK', 'SPYG', 'VONG', 'IWF'],
@@ -150,84 +67,49 @@ CATEGORY_PRIORITY = {
     'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
 }
 
-
-
-# S&P 500 티커 리스트 가져오기 (캐시)
 @st.cache_data
 def get_sp500_tickers():
     url = 'https://datahub.io/core/s-and-p-500-companies/r/constituents.csv'
     df = pd.read_csv(url)
     tickers = df['Symbol'].unique().tolist()
-    # yfinance에서 . 대신 - 사용
     tickers = [t.replace('.', '-') for t in tickers]
     return tickers
 
-# 미국 주요 ETF 리스트 (원하는대로 추가/수정 가능)
-US_MAJOR_ETFS = ['VOO', 'IVV', 'VTI', 'SPY', 'ITOT', 'SPTM', 'SPLG'
-   'VUG', 'IVW', 'QQQ', 'MGK', 'SPYG', 'VONG', 'IWF',
-   'VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM',
- 'VO', 'IJH', 'MDY', 'IVOO', 'SPMD', 'IWR', 'VMOT',
-  'VB', 'IJR', 'IWM', 'VTWO', 'SPSM', 'VBR', 'IWN',
-'EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF',
-'VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV',
-'VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV',
-'XLC','XTL', 'IYZ',
-'VHT', 'XLV', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH',
-'VFH', 'XLF', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI',
-'VDE', 'XLE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE',
-'VAW', 'XLB', 'IYM', 'FMAT', 'SLX', 'IYZ', 'DBB',
-'VIS', 'XLI', 'IYJ', 'FIDU', 'PPA', 'ITA', 'PRN',
-'VPU', 'XLU', 'IDU', 'FUTY', 'PUI', 'JXI', 'RYU',
- 'VCR', 'XLY', 'IYC', 'FDIS', 'RTH', 'XRT', 'PEJ',
-'VDC', 'XLP', 'IYK', 'FSTA', 'PBJ', 'SZK', 'KXI',
-'VNQ', 'IYR', 'SCHH', 'FREL', 'RWR', 'USRT', 'ICF',
-'BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA',
-'DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA',
-'USMV', 'SPLV', 'EFAV', 'IDLV',
-'SPMO', 'MTUM', 'IMTM', 'PDP']
-
-#def is_stock_ticker(ticker):
-    # 알파벳/숫자만 있고, ETF가 아니라고 가정 (좀 더 정교화 필요할 수 있음)
-    # ETF는 주요 ETF 리스트에 있으면 해당, 아니면 주식으로 분류
-    # yfinance로 info 가져와서 'quoteType' 체크해도 됨
-    #if ticker in US_MAJOR_ETFS:
-     #   return False
-    #if len(ticker) > 5:  # 보통 ETF가 더 길거나, 특수문자
-    #    return False
-    #return ticker.isalpha()
+# ETF universe: CATEGORY_PRIORITY의 모든 unique 값
+ETF_UNIVERSE = sorted({etf for v in CATEGORY_PRIORITY.values() for etf in v})
 
 def is_etf_ticker(ticker):
-    return ticker in US_MAJOR_ETFS
-    
+    return ticker in ETF_UNIVERSE
+
 def is_stock_ticker(ticker):
     sp500_tickers = get_sp500_tickers()
     return ticker in sp500_tickers
 
-
-def get_enhanced_asset_classification(ticker):
-    """향상된 자산 분류 - 더 세분화된 카테고리"""
-    
-    for category, tickers in EXTENDED_ASSET_POOL.items():
-        if ticker in tickers:
+def get_etf_category(ticker):
+    for category, etfs in CATEGORY_PRIORITY.items():
+        if ticker in etfs:
             return category
-    
-    return 'large_cap_us'  # 기본값
+    return None
 
 def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.5):
     sp500_tickers = get_sp500_tickers()
+    # ETF인 경우
     if is_etf_ticker(target_ticker):
-        candidates = [t for t in US_MAJOR_ETFS if t != target_ticker]
+        category = get_etf_category(target_ticker)
+        if category:
+            candidates = [t for t in CATEGORY_PRIORITY[category] if t != target_ticker]
+        else:
+            # CATEGORY_PRIORITY에 카테고리 없으면 전체에서 후보 추출
+            candidates = [t for t in ETF_UNIVERSE if t != target_ticker]
+    # 주식인 경우
     elif is_stock_ticker(target_ticker):
         candidates = [t for t in sp500_tickers if t != target_ticker]
     else:
-        asset_category = get_enhanced_asset_classification(target_ticker)
-        category_candidates = CATEGORY_PRIORITY.get(asset_category, [])
-        candidates = [ticker for ticker in category_candidates if ticker != target_ticker]
+        return None, None
 
     if not candidates:
         return None, None
 
-    # 후보군이 너무 많으면 랜덤으로 20개만 확인
     SAMPLE_N = 20
     if len(candidates) > SAMPLE_N:
         candidates = random.sample(candidates, SAMPLE_N)
@@ -245,7 +127,6 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     best_corr = -2
     best_ticker = None
     best_data = None
-    min_correlation = 0.5  # 반드시 0.5 이상으로 제한
 
     for cand in candidates:
         try:
@@ -266,20 +147,16 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 best_corr = abs(corr)
                 best_ticker = cand
                 best_data = cand_close
-        except Exception as e:
+        except Exception:
             continue
 
     if best_ticker is not None:
         print(f"Substituting {target_ticker} with {best_ticker} (correlation={best_corr:.3f})")
         return best_ticker, best_data
 
-    # fallback: 0.5 이상 상관관계가 아예 없으면 None 반환
     return None, None
 
-
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
-    """데이터 공백 채우기"""
-
     st.info("📊 데이터 로딩 및 공백 분석 중...")
 
     original_data = {}
@@ -291,7 +168,6 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             data = yf.download(ticker, start=start_date, end=end_date)['Close']
             if isinstance(data, pd.Series):
                 data = data.to_frame(name=ticker)
-            # 데이터 품질 확인
             data_start = data.first_valid_index()
             data_end = data.last_valid_index()
             data_length = len(data.dropna())
@@ -316,12 +192,10 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                     'needs_filling': False
                 }
                 st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
-
         except Exception as e:
             missing_tickers.append(ticker)
             st.error(f"❌ {ticker}: 데이터 로드 실패 - {str(e)}")
 
-    # --- 여기서 수정: 빈 DataFrame/Series는 concat에서 제외
     valid_data = {k: v for k, v in original_data.items() if v is not None and not v.empty}
     if not fill_gaps or len(missing_tickers) == 0:
         if len(valid_data) > 0:
@@ -332,13 +206,11 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         else:
             return None, {}
 
-    # 대체 자산 찾기 + 데이터 결합
     st.info("🔄 대체 자산 검색 및 데이터 결합 중...")
 
     substitution_log = {}
     enhanced_data = original_data.copy()
 
-    # 기존 데이터 DataFrame으로 결합
     if len(enhanced_data) > 0:
         available_data = pd.concat(enhanced_data.values(), axis=1)
         available_data.columns = enhanced_data.keys()
@@ -346,32 +218,21 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         available_data = pd.DataFrame()
 
     for ticker in missing_tickers:
-        
-
         substitute_ticker, substitute_data = find_best_substitute_enhanced(
             ticker, available_data, start_date, end_date
         )
-
         if substitute_ticker and substitute_data is not None:
-            # 대체 데이터 처리
             if isinstance(substitute_data, pd.Series):
                 substitute_data = substitute_data.to_frame(name=substitute_ticker)
-
-            # 원본 티커 이름으로 컬럼명 변경
             substitute_df = substitute_data.copy()
             substitute_df.columns = [ticker]
-
             enhanced_data[ticker] = substitute_df
             substitution_log[ticker] = {
                 'substitute': substitute_ticker,
                 'original_start': data_info.get(ticker, {}).get('original_data', pd.DataFrame()).first_valid_index(),
                 'substitute_start': substitute_data.first_valid_index(),
-                'method': 'similar_asset'
+                'method': 'category_corr'
             }
-
-            
-
-            # available_data 업데이트
             if len(available_data) == 0:
                 available_data = substitute_df
             else:
@@ -379,49 +240,38 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         else:
             st.error(f"❌ {ticker}: 적절한 대체 자산을 찾을 수 없습니다.")
 
-    # 최종 데이터 결합
     if len(enhanced_data) > 0:
         final_data = pd.concat(enhanced_data.values(), axis=1)
         final_data.columns = enhanced_data.keys()
-
-        # 월말 리샘플링
         monthly_data = final_data.resample('ME').last().dropna()
-
         st.success(f"🎉 최종 데이터셋 완성: {len(monthly_data.columns)}개 자산, {len(monthly_data)}개월 데이터")
-
         return monthly_data, substitution_log
     else:
         st.error("❌ 사용 가능한 데이터가 없습니다.")
         return None, {}
 
-# 캐시된 데이터 로더
 @st.cache_data
 def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
-    """유니버스 데이터"""
     return fill_missing_data(tickers, start_date, end_date, fill_gaps)
-    
+
 @st.cache_data
 def load_benchmark_data(ticker, start_date, end_date):
-    """벤치마크 데이터"""
     try:
         data = yf.download(ticker, start=start_date, end=end_date)['Close']
-
         if isinstance(data, pd.Series):
             data = data.to_frame(name=ticker)
         elif isinstance(data, pd.DataFrame) and len(data.columns) == 1:
             data.columns = [ticker]
-
         monthly_prices = data.resample('ME').last()
         monthly_prices = monthly_prices.dropna()
-
         if len(monthly_prices.columns) == 1:
             return monthly_prices.iloc[:, 0]
         else:
             return monthly_prices
-
     except Exception as e:
         st.error(f"벤치마크 데이터 로드 중 오류 발생: {str(e)}")
         return None
+
 
 def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=100):
     """가중치 조정 함수"""

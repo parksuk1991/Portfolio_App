@@ -75,7 +75,6 @@ def get_sp500_tickers():
     tickers = [t.replace('.', '-') for t in tickers]
     return tickers
 
-# ETF universe: CATEGORY_PRIORITY의 모든 unique 값
 ETF_UNIVERSE = sorted({etf for v in CATEGORY_PRIORITY.values() for etf in v})
 
 def is_etf_ticker(ticker):
@@ -93,15 +92,13 @@ def get_etf_category(ticker):
 
 def find_best_substitute_enhanced(target_ticker, available_data, start_date, end_date, min_correlation=0.5):
     sp500_tickers = get_sp500_tickers()
-    # ETF인 경우
+    # ETF인 경우: 같은 카테고리 내 or 전체 ETF 중 후보
     if is_etf_ticker(target_ticker):
         category = get_etf_category(target_ticker)
         if category:
             candidates = [t for t in CATEGORY_PRIORITY[category] if t != target_ticker]
         else:
-            # CATEGORY_PRIORITY에 카테고리 없으면 전체에서 후보 추출
             candidates = [t for t in ETF_UNIVERSE if t != target_ticker]
-    # 주식인 경우
     elif is_stock_ticker(target_ticker):
         candidates = [t for t in sp500_tickers if t != target_ticker]
     else:
@@ -110,6 +107,7 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     if not candidates:
         return None, None
 
+    # 후보 개수 제한 (카테고리 내 후보면 대부분 2~8개이므로 제한 의미 없음, 전체 ETF는 20개 샘플)
     SAMPLE_N = 20
     if len(candidates) > SAMPLE_N:
         candidates = random.sample(candidates, SAMPLE_N)
@@ -128,6 +126,7 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
     best_ticker = None
     best_data = None
 
+    checked_candidates = []
     for cand in candidates:
         try:
             cand_data = yf.download(cand, start=start_date, end=end_date, progress=False)
@@ -135,14 +134,15 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
                 continue
             cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
             common_idx = target_close.index.intersection(cand_close.index)
-            if len(common_idx) < 30:
+            if len(common_idx) < 15:  # 완화: 30→15
                 continue
             target_ret = target_close.loc[common_idx].pct_change().dropna()
             cand_ret = cand_close.loc[common_idx].pct_change().dropna()
             idx = target_ret.index.intersection(cand_ret.index)
-            if len(idx) < 20:
+            if len(idx) < 10:  # 완화: 20→10
                 continue
             corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
+            checked_candidates.append((cand, cand_close, corr, len(idx)))
             if pd.notnull(corr) and abs(corr) > best_corr and abs(corr) >= min_correlation:
                 best_corr = abs(corr)
                 best_ticker = cand
@@ -150,10 +150,19 @@ def find_best_substitute_enhanced(target_ticker, available_data, start_date, end
         except Exception:
             continue
 
+    # (1) 상관관계 기준 후보가 있으면 반환
     if best_ticker is not None:
         print(f"Substituting {target_ticker} with {best_ticker} (correlation={best_corr:.3f})")
         return best_ticker, best_data
 
+    # (2) 상관관계 0.5 미만이라도 데이터가 제일 많은 후보로라도 대체 (카테고리/전체 ETF 모두에 대해)
+    if checked_candidates:
+        checked_candidates.sort(key=lambda tup: (tup[3], abs(tup[2]) if tup[2] is not None else 0), reverse=True)
+        cand, cand_close, corr, overlap = checked_candidates[0]
+        print(f"Fallback substitute {target_ticker} → {cand} (data points overlap={overlap}, corr={corr})")
+        return cand, cand_close
+
+    # (3) 모든 후보 실패시 (데이터 자체가 없는 경우) None 반환
     return None, None
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):

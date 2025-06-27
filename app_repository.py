@@ -77,25 +77,91 @@ def get_sp500_tickers():
 
 ETF_UNIVERSE = sorted({etf for v in CATEGORY_PRIORITY.values() for etf in v})
 
-# yfinance로 ETF/주식 구분 (ETF면 'etf', 주식이면 'equity', 그 외 기타)
 def get_ticker_type(ticker):
-    # 우선 카테고리 우선
     if ticker in ETF_UNIVERSE:
         return "ETF"
     sp500 = get_sp500_tickers()
     if ticker in sp500:
         return "주식"
-    # yfinance info로 판단 (fallback)
     try:
         info = yf.Ticker(ticker).info
         if 'quoteType' in info:
-            if info['quoteType'] == 'ETF':
+            if info['quoteType'].lower() == 'etf':
                 return "ETF"
-            elif info['quoteType'] == 'EQUITY':
+            elif info['quoteType'].lower() == 'equity':
                 return "주식"
     except Exception:
         pass
     return "기타"
+
+def get_etf_category(ticker):
+    for category, etfs in CATEGORY_PRIORITY.items():
+        if ticker in etfs:
+            return category
+    return None
+
+def find_best_substitute_strict(target_ticker, type_tag, start_date, end_date):
+    """
+    타겟 티커가 ETF면 같은 CATEGORY_PRIORITY 그룹 내에서, 주식이면 S&P500 내에서
+    월간 수익률 기준 상관관계 최대 & 시작일 데이터 존재하는 자산으로 대체.
+    """
+    # 후보군 구성
+    sp500_tickers = get_sp500_tickers()
+    if type_tag == "ETF":
+        category = get_etf_category(target_ticker)
+        if category is None:
+            return None, None, None
+        candidates = [t for t in CATEGORY_PRIORITY[category] if t != target_ticker]
+    elif type_tag == "주식":
+        candidates = [t for t in sp500_tickers if t != target_ticker]
+    else:
+        return None, None, None
+
+    # 타겟 월별 종가 다운로드
+    try:
+        t_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
+        if t_data.empty or 'Close' not in t_data.columns:
+            return None, None, None
+        t_close = t_data['Close'].resample('M').last().dropna()
+        target_start = t_close.first_valid_index()
+    except Exception:
+        return None, None, None
+
+    best_corr = -999
+    best_ticker = None
+    best_data = None
+
+    for cand in candidates:
+        try:
+            c_data = yf.download(cand, start=start_date, end=end_date, progress=False)
+            if c_data.empty or 'Close' not in c_data.columns:
+                continue
+            c_close = c_data['Close'].resample('M').last().dropna()
+            cand_start = c_close.first_valid_index()
+            if target_start is None or cand_start is None:
+                continue
+            # 시작월에 둘다 데이터가 있어야 함
+            if target_start != cand_start:
+                continue
+            # 월간 수익률
+            t_ret = t_close.pct_change().dropna()
+            c_ret = c_close.pct_change().dropna()
+            idx = t_ret.index.intersection(c_ret.index)
+            if len(idx) < 6:
+                continue
+            corr = t_ret.loc[idx].corr(c_ret.loc[idx])
+            if pd.isnull(corr):
+                continue
+            if abs(corr) > best_corr:
+                best_corr = abs(corr)
+                best_ticker = cand
+                best_data = c_close
+        except Exception:
+            continue
+
+    if best_ticker is not None:
+        return best_ticker, best_data, best_corr
+    return None, None, None
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     st.info("📊 데이터 로딩 및 공백 분석 중...")
@@ -114,7 +180,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             data_end = data.last_valid_index()
             data_length = len(data.dropna())
             target_start = pd.to_datetime(start_date)
-            if data_start is None or data_length < 50:
+            if data_start is None or data_length < 6:
                 missing_tickers.append((ticker, type_tag))
                 st.warning(f"❌ {ticker} [{type_tag}]: 데이터 부족 (길이: {data_length})")
             elif data_start > target_start + pd.DateOffset(years=1):
@@ -158,8 +224,8 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         available_data = pd.DataFrame()
 
     for ticker, type_tag in missing_tickers:
-        substitute_ticker, substitute_data = find_best_substitute_ultimate(
-            ticker, type_tag, available_data, start_date, end_date
+        substitute_ticker, substitute_data, corr = find_best_substitute_strict(
+            ticker, type_tag, start_date, end_date
         )
         if substitute_ticker and substitute_data is not None:
             if isinstance(substitute_data, pd.Series):
@@ -169,15 +235,14 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             enhanced_data[ticker] = substitute_df
             substitution_log[ticker] = {
                 'substitute': substitute_ticker,
-                'original_start': data_info.get(ticker, {}).get('original_data', pd.DataFrame()).first_valid_index(),
-                'substitute_start': substitute_data.first_valid_index(),
-                'method': 'corr_best'
+                'correlation': corr,
+                'method': 'correlation',
             }
             if len(available_data) == 0:
                 available_data = substitute_df
             else:
                 available_data = pd.concat([available_data, substitute_df], axis=1)
-            st.success(f"🔄 {ticker} [{type_tag}]: 대체 자산 {substitute_ticker}로 대체 성공")
+            st.success(f"🔄 {ticker} [{type_tag}]: 대체 자산 {substitute_ticker} (상관계수: {corr:.3f})")
         else:
             st.error(f"❌ {ticker} [{type_tag}]: 적절한 대체 자산을 찾을 수 없습니다.")
 
@@ -190,87 +255,6 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     else:
         st.error("❌ 사용 가능한 데이터가 없습니다.")
         return None, {}
-
-def find_best_substitute_ultimate(target_ticker, type_tag, available_data, start_date, end_date, min_overlap=8):
-    """
-    ETF/주식 모두, 가장 유사한 대체자산을 CATEGORY_PRIORITY ETF 또는 S&P500 주식 내에서 반드시 찾는다.
-    최소 min_overlap일 이상만 겹치면 상관관계가 가장 높은 자산 무조건 대체.
-    """
-    # 후보군 구성
-    sp500_tickers = get_sp500_tickers()
-    # ETF: CATEGORY_PRIORITY 내에서, 주식: S&P500 내에서
-    if type_tag == "ETF":
-        candidates = [t for t in ETF_UNIVERSE if t != target_ticker]
-    elif type_tag == "주식":
-        candidates = [t for t in sp500_tickers if t != target_ticker]
-    else:
-        # 기타는 ETF 우선, 없으면 S&P500
-        candidates = [t for t in ETF_UNIVERSE if t != target_ticker]
-        if not candidates:
-            candidates = [t for t in sp500_tickers if t != target_ticker]
-        if not candidates:
-            return None, None
-
-    # 타겟 데이터
-    try:
-        target_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
-        if target_data.empty:
-            return None, None
-        target_close = target_data['Close'] if 'Close' in target_data.columns else target_data
-    except Exception as e:
-        print(f"Failed to download target data for {target_ticker}: {str(e)}")
-        return None, None
-
-    best_corr = -999
-    best_ticker = None
-    best_data = None
-    best_overlap = 0
-
-    # 최대 30개까지만 시도 (속도)
-    if len(candidates) > 30:
-        candidates = np.random.choice(candidates, 30, replace=False)
-
-    for cand in candidates:
-        try:
-            cand_data = yf.download(cand, start=start_date, end=end_date, progress=False)
-            if cand_data.empty:
-                continue
-            cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
-            common_idx = target_close.index.intersection(cand_close.index)
-            if len(common_idx) < min_overlap:
-                continue
-            target_ret = target_close.loc[common_idx].pct_change().dropna()
-            cand_ret = cand_close.loc[common_idx].pct_change().dropna()
-            idx = target_ret.index.intersection(cand_ret.index)
-            if len(idx) < min_overlap:
-                continue
-            corr = target_ret.loc[idx].corr(cand_ret.loc[idx])
-            if pd.notnull(corr):
-                if abs(corr) > best_corr or (abs(corr) == best_corr and len(idx) > best_overlap):
-                    best_corr = abs(corr)
-                    best_ticker = cand
-                    best_data = cand_close
-                    best_overlap = len(idx)
-        except Exception:
-            continue
-
-    # fallback: 데이터는 있지만 상관관계 계산 안되는 경우
-    if best_ticker is None:
-        for cand in candidates:
-            try:
-                cand_data = yf.download(cand, start=start_date, end=end_date, progress=False)
-                if cand_data.empty:
-                    continue
-                cand_close = cand_data['Close'] if 'Close' in cand_data.columns else cand_data
-                if len(cand_close.dropna()) >= min_overlap:
-                    return cand, cand_close
-            except Exception:
-                continue
-
-    if best_ticker is not None:
-        return best_ticker, best_data
-
-    return None, None
 
 @st.cache_data
 def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
@@ -293,6 +277,8 @@ def load_benchmark_data(ticker, start_date, end_date):
     except Exception as e:
         st.error(f"벤치마크 데이터 로드 중 오류 발생: {str(e)}")
         return None
+
+
 def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=100):
     """가중치 조정 함수"""
     adjusted_weights = weights.copy()

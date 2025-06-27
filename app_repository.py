@@ -83,15 +83,6 @@ def get_ticker_type(ticker):
     sp500 = get_sp500_tickers()
     if ticker in sp500:
         return "주식"
-    try:
-        info = yf.Ticker(ticker).info
-        if 'quoteType' in info:
-            if info['quoteType'].lower() == 'etf':
-                return "ETF"
-            elif info['quoteType'].lower() == 'equity':
-                return "주식"
-    except Exception:
-        pass
     return "기타"
 
 def get_etf_category(ticker):
@@ -100,36 +91,35 @@ def get_etf_category(ticker):
             return category
     return None
 
-def find_best_substitute_strict(target_ticker, type_tag, start_date, end_date):
-    """
-    타겟 티커가 ETF면 같은 CATEGORY_PRIORITY 그룹 내에서, 주식이면 S&P500 내에서
-    월간 수익률 기준 상관관계 최대 & 시작일 데이터 존재하는 자산으로 대체.
-    """
-    # 후보군 구성
+def find_best_substitute_relaxed(target_ticker, type_tag, start_date, end_date):
     sp500_tickers = get_sp500_tickers()
     if type_tag == "ETF":
         category = get_etf_category(target_ticker)
         if category is None:
-            return None, None, None
+            return None, None, None, None
         candidates = [t for t in CATEGORY_PRIORITY[category] if t != target_ticker]
     elif type_tag == "주식":
         candidates = [t for t in sp500_tickers if t != target_ticker]
     else:
-        return None, None, None
+        return None, None, None, None
 
-    # 타겟 월별 종가 다운로드
+    # 타겟 월별 종가
     try:
         t_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)
         if t_data.empty or 'Close' not in t_data.columns:
-            return None, None, None
+            return None, None, None, None
         t_close = t_data['Close'].resample('M').last().dropna()
-        target_start = t_close.first_valid_index()
     except Exception:
-        return None, None, None
+        return None, None, None, None
 
     best_corr = -999
     best_ticker = None
     best_data = None
+    best_overlap = 0
+
+    fallback_ticker = None
+    fallback_data = None
+    fallback_overlap = 0
 
     for cand in candidates:
         try:
@@ -137,31 +127,43 @@ def find_best_substitute_strict(target_ticker, type_tag, start_date, end_date):
             if c_data.empty or 'Close' not in c_data.columns:
                 continue
             c_close = c_data['Close'].resample('M').last().dropna()
-            cand_start = c_close.first_valid_index()
-            if target_start is None or cand_start is None:
-                continue
-            # 시작월에 둘다 데이터가 있어야 함
-            if target_start != cand_start:
-                continue
-            # 월간 수익률
-            t_ret = t_close.pct_change().dropna()
-            c_ret = c_close.pct_change().dropna()
-            idx = t_ret.index.intersection(c_ret.index)
+            # 겹치는 월간 데이터가 6개 이상이면 후보
+            idx = t_close.index.intersection(c_close.index)
             if len(idx) < 6:
                 continue
-            corr = t_ret.loc[idx].corr(c_ret.loc[idx])
+            # 겹치는 기간 중 처음 달에 둘 다 데이터 있으면 우선
+            t_first = t_close.loc[idx].first_valid_index()
+            c_first = c_close.loc[idx].first_valid_index()
+            if t_first is None or c_first is None:
+                continue
+            # 상관계수 계산
+            t_ret = t_close.loc[idx].pct_change().dropna()
+            c_ret = c_close.loc[idx].pct_change().dropna()
+            idx2 = t_ret.index.intersection(c_ret.index)
+            if len(idx2) < 5:
+                continue
+            corr = t_ret.loc[idx2].corr(c_ret.loc[idx2])
             if pd.isnull(corr):
                 continue
+            # 가장 상관계수가 높은 것
             if abs(corr) > best_corr:
                 best_corr = abs(corr)
                 best_ticker = cand
                 best_data = c_close
+                best_overlap = len(idx2)
+            # fallback: 상관계수 무관, 데이터 overlap이 제일 많은 것
+            if len(idx2) > fallback_overlap:
+                fallback_overlap = len(idx2)
+                fallback_ticker = cand
+                fallback_data = c_close
         except Exception:
             continue
 
-    if best_ticker is not None:
-        return best_ticker, best_data, best_corr
-    return None, None, None
+    if best_ticker is not None and best_data is not None:
+        return best_ticker, best_data, best_corr, best_overlap
+    elif fallback_ticker is not None:
+        return fallback_ticker, fallback_data, None, fallback_overlap
+    return None, None, None, None
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     st.info("📊 데이터 로딩 및 공백 분석 중...")
@@ -180,6 +182,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             data_end = data.last_valid_index()
             data_length = len(data.dropna())
             target_start = pd.to_datetime(start_date)
+            # 데이터가 6개월 미만이면 결측 취급
             if data_start is None or data_length < 6:
                 missing_tickers.append((ticker, type_tag))
                 st.warning(f"❌ {ticker} [{type_tag}]: 데이터 부족 (길이: {data_length})")
@@ -224,7 +227,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
         available_data = pd.DataFrame()
 
     for ticker, type_tag in missing_tickers:
-        substitute_ticker, substitute_data, corr = find_best_substitute_strict(
+        substitute_ticker, substitute_data, corr, overlap = find_best_substitute_relaxed(
             ticker, type_tag, start_date, end_date
         )
         if substitute_ticker and substitute_data is not None:
@@ -236,13 +239,15 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
             substitution_log[ticker] = {
                 'substitute': substitute_ticker,
                 'correlation': corr,
+                'overlap_months': overlap,
                 'method': 'correlation',
             }
-            if len(available_data) == 0:
-                available_data = substitute_df
+            msg = f"🔄 {ticker} [{type_tag}]: 대체 자산 {substitute_ticker}"
+            if corr is not None:
+                msg += f" (상관계수: {corr:.3f}, 겹치는 월: {overlap})"
             else:
-                available_data = pd.concat([available_data, substitute_df], axis=1)
-            st.success(f"🔄 {ticker} [{type_tag}]: 대체 자산 {substitute_ticker} (상관계수: {corr:.3f})")
+                msg += f" (상관계수: 계산불가, 겹치는 월: {overlap})"
+            st.success(msg)
         else:
             st.error(f"❌ {ticker} [{type_tag}]: 적절한 대체 자산을 찾을 수 없습니다.")
 

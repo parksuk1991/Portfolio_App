@@ -43,7 +43,7 @@ BENCHMARK_OPTIONS = {
 # 유사 자산 매핑
 SIMILAR_ASSETS_MAP = {
     # 섹터 ETF 매핑
-    'XLC': ['XTL', 'IYZ', 'VNQ'],  # Communication Services -> Telecom/Tech/REITs
+    'XLC': ['IYZ', 'VNQ', 'XTL'],  # Communication Services -> Telecom/Tech/REITs
     'XLY': ['RTH', 'XRT', 'VCR'],  # Consumer Discretionary -> Retail
     'XLP': ['VDC', 'PBJ', 'SZK'],  # Consumer Staples
     'XLE': ['VDE', 'IYE', 'DIG'],  # Energy
@@ -60,11 +60,11 @@ SIMILAR_ASSETS_MAP = {
     'VYM': ['DVY', 'VTV', 'SCHD'],  # High Dividend Yield
     'RSP': ['EQL', 'EWRS', 'SPY'],  # Equal Weight S&P 500
     'USMV': ['SPLV', 'EFAV', 'SPY'],  # Low Volatility
-    'SPMO': ['MTUM', 'PDP', 'QQQ'],  # Momentum
+    'SPMO': ['PDP', 'QQQ', 'MTUM'],  # Momentum
 
     # 리전 ETF 매핑
-    'IDEV': ['EFA', 'VEA', 'ACWX'],  # Developed Markets
-    'IEMG': ['EEM', 'VWO', 'SCHE'],  # Emerging Markets
+    'IDEV': ['VEA', 'ACWX', 'EFA'],  # Developed Markets
+    'IEMG': ['EEM', 'SCHE', 'VWO'],  # Emerging Markets
 }
 
 # 대체 자산 풀
@@ -104,9 +104,9 @@ EXTENDED_ASSET_POOL = {
     'mid_cap': ['MDY', 'IJH', 'VO', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
     'small_cap': ['IWM', 'VB', 'IJR', 'VTWO', 'SPSM', 'VBR', 'IWN'],
     'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
-    'international_em': ['EEM', 'VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
+    'international_em': ['VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEM', 'EEMV'],
     'technology': ['XLK', 'QQQ', 'VGT', 'IYW', 'FTEC', 'SOXX', 'IGV'],
-    'communications': ['XLC', 'XTL', 'IYZ'],
+    'communications': ['XLC', 'IYZ', 'XTL'],
     'healthcare': ['XLV', 'VHT', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
     'financials': ['XLF', 'VFH', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
     'energy': ['XLE', 'VDE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
@@ -119,7 +119,7 @@ EXTENDED_ASSET_POOL = {
     'bonds': ['AGG', 'BND', 'IEFA', 'SCHZ', 'IEF', 'TLT', 'SHY'],
     'commodities': ['DJP', 'DBC', 'PDBC', 'GSG', 'COMT', 'BCI', 'RJA'],
     'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
-    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
+    'momentum': ['SPMO', 'IMTM', 'PDP', 'MTUM']
     
 }
 
@@ -130,10 +130,10 @@ CATEGORY_PRIORITY = {
     'large_cap_value': ['VTV', 'IVE', 'DVY', 'SPYV', 'VONV', 'IWD', 'VYM'],
     'mid_cap': ['VO', 'IJH', 'MDY', 'IVOO', 'SPMD', 'IWR', 'VMOT'],
     'small_cap': ['VB', 'IJR', 'IWM', 'VTWO', 'SPSM', 'VBR', 'IWN'],
-    'international_dev': ['EFA', 'IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'SCHF'],
-    'international_em': ['VWO', 'IEMG', 'EEM', 'SCHE', 'DEM', 'SPEM', 'EEMV'],
+    'international_dev': ['IEUR', 'IXUS', 'VEA', 'IEFA', 'ACWX', 'IDEV', 'VTEB', 'EFA', 'SCHF'],
+    'international_em': ['VWO', 'IEMG', 'SCHE', 'DEM', 'SPEM', 'EEM', 'EEMV'],
     'technology': ['VGT', 'XLK', 'IYW', 'QQQ', 'FTEC', 'SOXX', 'IGV'],
-    'communications': ['XLC','XTL', 'IYZ'],
+    'communications': ['XLC', 'IYZ', 'XTL'],
     'healthcare': ['VHT', 'XLV', 'IYH', 'FHLC', 'PJP', 'IHI', 'BBH'],
     'financials': ['VFH', 'XLF', 'IYF', 'FNCL', 'KBE', 'IAT', 'PFI'],
     'energy': ['VDE', 'XLE', 'IYE', 'FENY', 'DIG', 'IEO', 'PXE'],
@@ -146,7 +146,7 @@ CATEGORY_PRIORITY = {
     'bonds': ['BND', 'AGG', 'SCHZ', 'IEF', 'TLT', 'SHY', 'IEFA'],
     'commodities': ['DBC', 'PDBC', 'DJP', 'GSG', 'COMT', 'BCI', 'RJA'],
     'minvol': ['USMV', 'SPLV', 'EFAV', 'IDLV'],
-    'momentum': ['SPMO', 'MTUM', 'IMTM', 'PDP']
+    'momentum': ['SPMO', 'IMTM', 'PDP', 'MTUM']
 }
 
 def get_enhanced_asset_classification(ticker):

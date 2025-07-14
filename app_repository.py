@@ -6,10 +6,8 @@ import streamlit as st
 import yfinance as yf
 import numpy as np
 import pandas as pd
-from datetime import datetime
 import datetime as dt
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import plotly.express as px
 from scipy.stats import pearsonr
 import warnings
@@ -57,29 +55,61 @@ ASSET_SUBSTITUTE_POOL = {
     'SPMO': ['MTUM', 'PDP', 'QQQ'],
     'IDEV': ['EFA', 'VEA', 'ACWX'],
     'IEMG': ['EEM', 'VWO', 'SCHE'],
-    # 주요 ETF 추가 예시
     'SPY': ['VOO', 'IVV', 'VTI'],
     'QQQ': ['VGT', 'XLK', 'MGK'],
     'ACWI': ['IXUS', 'VEA', 'EFA'],
     # 필요시 추가
 }
 
-def find_best_substitute_simple(target_ticker, start_date, end_date):
-    """정의된 대체 자산 리스트에서 순서대로 데이터가 존재하는 첫 번째 자산을 대체로 선택"""
+def find_best_substitute_by_corr(target_ticker, start_date, end_date):
+    """대체자산 후보군에서 데이터 길이가 더 길고 상관관계가 가장 높은 자산을 선택.
+       Asset_Substitute_pool에 없거나 조건에 맞는 자산이 없으면 SPY 사용."""
+    try:
+        target_data = yf.download(target_ticker, start=start_date, end=end_date, progress=False)['Close'].dropna()
+    except Exception:
+        target_data = None
+
     substitutes = ASSET_SUBSTITUTE_POOL.get(target_ticker, [])
+    best_corr = -2
+    best_candidate = None
+    best_candidate_data = None
+
     for substitute in substitutes:
         try:
-            data = yf.download(substitute, start=start_date, end=end_date, progress=False)
-            if not data.empty:
-                close_data = data['Close'] if 'Close' in data.columns else data
-                if len(close_data.dropna()) > 50:
-                    return substitute, close_data
-        except Exception as e:
+            sub_data = yf.download(substitute, start=start_date, end=end_date, progress=False)['Close'].dropna()
+            if target_data is not None and len(sub_data) <= len(target_data):
+                continue
+
+            merged = pd.concat([target_data, sub_data], axis=1, join='inner').dropna()
+            if len(merged) < 12:
+                continue
+            returns1 = merged.iloc[:, 0].pct_change().dropna()
+            returns2 = merged.iloc[:, 1].pct_change().dropna()
+            common = returns1.index.intersection(returns2.index)
+            if len(common) < 10:
+                continue
+            corr, _ = pearsonr(returns1.loc[common], returns2.loc[common])
+            if np.isnan(corr):
+                continue
+            if corr > best_corr:
+                best_corr = corr
+                best_candidate = substitute
+                best_candidate_data = sub_data
+        except Exception:
             continue
-    return None, None
+
+    if best_candidate is not None:
+        return best_candidate, best_candidate_data
+
+    # pool에 없거나 조건맞는 후보가 없는 경우 SPY로 대체
+    st.warning(f"❌ {target_ticker}: 적절한 대체 자산을 찾을 수 없어 'SPY' 데이터로 대체합니다.")
+    try:
+        spy_data = yf.download('SPY', start=start_date, end=end_date, progress=False)['Close'].dropna()
+        return 'SPY', spy_data
+    except Exception:
+        return None, None
 
 def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
-    """데이터 공백 채우기 (대체 자산은 ASSET_SUBSTITUTE_POOL만 사용)"""
     st.info("📊 데이터 로딩 및 공백 분석 중...")
 
     original_data = {}
@@ -115,7 +145,6 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                     'needs_filling': False
                 }
                 st.success(f"✅ {ticker}: 데이터 양호 ({data_start.strftime('%Y-%m')} ~ {data_end.strftime('%Y-%m')})")
-
         except Exception as e:
             missing_tickers.append(ticker)
             st.error(f"❌ {ticker}: 데이터 로드 실패 - {str(e)}")
@@ -134,7 +163,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
     enhanced_data = original_data.copy()
 
     for ticker in missing_tickers:
-        substitute_ticker, substitute_data = find_best_substitute_simple(
+        substitute_ticker, substitute_data = find_best_substitute_by_corr(
             ticker, start_date, end_date
         )
         if substitute_ticker and substitute_data is not None:
@@ -147,7 +176,7 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
                 'substitute': substitute_ticker,
                 'original_start': data_info.get(ticker, {}).get('original_data', pd.DataFrame()).first_valid_index(),
                 'substitute_start': substitute_data.first_valid_index(),
-                'method': 'simple_substitute'
+                'method': 'by_corr'
             }
         else:
             st.error(f"❌ {ticker}: 적절한 대체 자산을 찾을 수 없습니다.")
@@ -164,12 +193,10 @@ def fill_missing_data(tickers, start_date, end_date, fill_gaps=True):
 
 @st.cache_data
 def load_universe_data_enhanced(tickers, start_date, end_date, fill_gaps=True):
-    """유니버스 데이터"""
     return fill_missing_data(tickers, start_date, end_date, fill_gaps)
 
 @st.cache_data
 def load_benchmark_data(ticker, start_date, end_date):
-    """벤치마크 데이터"""
     try:
         data = yf.download(ticker, start=start_date, end=end_date)['Close']
         if isinstance(data, pd.Series):
@@ -187,18 +214,13 @@ def load_benchmark_data(ticker, start_date, end_date):
         return None
 
 def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=100):
-    """가중치 조정 함수"""
     adjusted_weights = weights.copy()
-
     for iteration in range(max_iterations):
         adjusted_weights = np.minimum(adjusted_weights, upper_bound)
         adjusted_weights = np.maximum(adjusted_weights, lower_bound)
-
         total_weight = adjusted_weights.sum()
-
         if abs(total_weight - 1.0) < 1e-6:
             break
-
         if total_weight > 1.0:
             excess = total_weight - 1.0
             adjustable_mask = adjusted_weights > lower_bound
@@ -215,64 +237,47 @@ def adjust_weights_to_bounds(weights, upper_bound, lower_bound, max_iterations=1
                 addition[~adjustable_mask] = 0
                 adjusted_weights = adjusted_weights + addition
                 adjusted_weights = np.minimum(adjusted_weights, upper_bound)
-
     adjusted_weights = adjusted_weights / adjusted_weights.sum()
     return adjusted_weights
 
 def run_backtest(stock_returns, window, top_n_stocks, upper_bound, lower_bound):
-    """백테스팅 실행"""
     portfolio_returns = []
     portfolio_dates = []
     portfolio_composition = {}
     weights_composition = {}
     prev_weights = None
-
     progress_bar = st.progress(0)
     total_iterations = len(stock_returns) - window
-
     for i in range(window, len(stock_returns)):
         progress_bar.progress((i - window) / total_iterations)
-
         current_date = stock_returns.index[i]
         past_returns = stock_returns.iloc[i-window:i]
         momentum_score = (1 + past_returns).prod() - 1
-
-        if i % 1 == 0:  # 매월 리밸런싱
+        if i % 1 == 0:
             current_top_stocks = momentum_score.nlargest(top_n_stocks).index.tolist()
             portfolio_composition[current_date] = current_top_stocks
-
             lookback_period = min(36, i)
             if lookback_period < 12:
                 continue
-
             historical_returns = stock_returns.iloc[i-lookback_period:i][current_top_stocks]
             if len(historical_returns) < 12:
                 continue
-
             cov_matrix = historical_returns.cov()
             sigma_squared = np.diag(cov_matrix.values)
             sigma_squared = np.maximum(sigma_squared, 1e-8)
-
             momentum_scores = momentum_score[current_top_stocks].values
             momentum_scores = np.maximum(momentum_scores, 0.01)
-
             inverse_volatility = 1 / np.sqrt(sigma_squared)
             base_weights = inverse_volatility / inverse_volatility.sum()
-
             adjusted_weights = base_weights * np.sqrt(momentum_scores)
             adjusted_weights = adjusted_weights / adjusted_weights.sum()
-
             final_weights = adjust_weights_to_bounds(adjusted_weights, upper_bound, lower_bound)
-
             weights_composition[current_date] = dict(zip(current_top_stocks, final_weights))
             prev_weights = weights_composition[current_date]
-
         if prev_weights is not None:
             current_stocks = list(prev_weights.keys())
             weights_array = np.array(list(prev_weights.values()))
-
             available_returns = stock_returns.loc[current_date, current_stocks]
-
             if not available_returns.isna().any():
                 portfolio_return = np.sum(weights_array * available_returns.values)
                 portfolio_returns.append(portfolio_return)
@@ -280,13 +285,10 @@ def run_backtest(stock_returns, window, top_n_stocks, upper_bound, lower_bound):
             else:
                 portfolio_returns.append(0.0)
                 portfolio_dates.append(current_date)
-
     progress_bar.empty()
-
     return pd.Series(portfolio_returns, index=portfolio_dates), weights_composition
 
 def safe_convert_to_float(value):
-    """값을 안전하게 float로 변환"""
     try:
         if hasattr(value, 'item'):
             return float(value.item())
@@ -298,7 +300,6 @@ def safe_convert_to_float(value):
         return 0.0
 
 def calculate_performance_metrics(returns, benchmark_returns=None):
-    """성과 지표 계산 (추적오차 포함)"""
     if len(returns) == 0:
         return {
             'total_return': 0.0,
@@ -308,18 +309,14 @@ def calculate_performance_metrics(returns, benchmark_returns=None):
             'max_drawdown': 0.0,
             'tracking_error': 0.0
         }
-
     total_return = safe_convert_to_float((1 + returns).prod() - 1)
     annualized_return = safe_convert_to_float((1 + returns.mean())**12 - 1)
     volatility = safe_convert_to_float(returns.std() * np.sqrt(12))
-
     sharpe_ratio = annualized_return / volatility if volatility > 0 else 0.0
-
     cumulative = (1 + returns).cumprod()
     running_max = cumulative.expanding().max()
     drawdown = (cumulative - running_max) / running_max
     max_drawdown = safe_convert_to_float(drawdown.min())
-
     tracking_error = 0.0
     if benchmark_returns is not None and len(benchmark_returns) > 0:
         common_index = returns.index.intersection(benchmark_returns.index)
@@ -328,7 +325,6 @@ def calculate_performance_metrics(returns, benchmark_returns=None):
             aligned_benchmark = benchmark_returns.loc[common_index]
             excess_returns = aligned_returns - aligned_benchmark
             tracking_error = safe_convert_to_float(excess_returns.std() * np.sqrt(12))
-
     return {
         'total_return': total_return,
         'annualized_return': annualized_return,
@@ -339,7 +335,6 @@ def calculate_performance_metrics(returns, benchmark_returns=None):
     }
 
 def calculate_portfolio_turnover(weights_composition):
-    """포트폴리오 회전율 계산"""
     if len(weights_composition) < 2:
         return 0.0
     dates = sorted(weights_composition.keys())
@@ -361,7 +356,6 @@ def calculate_portfolio_turnover(weights_composition):
     return annual_turnover
 
 def get_rebalancing_changes(current_weights, previous_weights):
-    """리밸런싱 변화 계산"""
     all_stocks = set(list(current_weights.keys()) + (list(previous_weights.keys()) if previous_weights else []))
     changes = {}
     for stock in all_stocks:
@@ -378,7 +372,6 @@ def get_rebalancing_changes(current_weights, previous_weights):
     return changes
 
 def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_name):
-    """연도별 및 월별 성과 비교 차트 생성"""
     common_index = portfolio_returns.index.intersection(benchmark_returns.index)
     port_aligned = portfolio_returns.loc[common_index]
     bench_aligned = benchmark_returns.loc[common_index]
@@ -437,7 +430,6 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
     )
     return fig_yearly, fig_monthly
 
-# (이하 main 함수 등 기존 코드 동일)
 def main():
     st.title("📈 Portfolio Backtesting App")
     st.markdown("##### 만든이: 박석")

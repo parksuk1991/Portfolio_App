@@ -1,8 +1,8 @@
 # Portfolio_App
 
-##Streamlit 기반 Web Application prototype
+## Streamlit 기반 Web Application prototype
 
-##Version.2025.06
+## Version.2025.06
 
 ----
 <모멘텀 기반 포트폴리오 구성>

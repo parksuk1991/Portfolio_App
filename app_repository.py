@@ -433,6 +433,15 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
 def main():
     st.title("📈 Portfolio Backtesting App")
     #st.markdown("##### 만든이: 박석")
+    
+    image_url = "https://cdn.theatlantic.com/thumbor/gjwD-uCiv0sHowRxQrQgL9b3Shk=/900x638/media/img/photo/2019/07/apollo-11-moon-landing-photos-50-ye/a01_40-5903/original.jpg"
+    img_displayed = False
+    response = requests.get(image_url, timeout=5)
+    response.raise_for_status()
+    img = Image.open(BytesIO(response.content))
+    st.image(img, width=150, caption=None)
+    img_displayed = True
+
     st.markdown(
     "<div style='margin-top: -1px; text-align:right;'>"
     "<span style='font-size:0.9rem; color:#888;'>Made by parksuk1991</span>"

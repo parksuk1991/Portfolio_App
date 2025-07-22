@@ -434,7 +434,7 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
     return fig_yearly, fig_monthly
 
 def main():
-    col_title, col_img_credit = st.columns([9, 1])
+    col_title, col_img_credit = st.columns([8, 1])
     with col_title:
         st.title("📈 Portfolio Backtesting App")
         #st.markdown("##### 만든이: 박석")
@@ -447,14 +447,14 @@ def main():
             response = requests.get(image_url, timeout=5)
             response.raise_for_status()
             img = Image.open(BytesIO(response.content))
-            st.image(img, width=150, caption=None)
+            st.image(img, width=200, caption=None)
             img_displayed = True
         except Exception:
             try:
                 response = requests.get(fallback_icon, timeout=5)
                 response.raise_for_status()
                 img = Image.open(BytesIO(response.content))
-                st.image(img, width=150, caption=None)
+                st.image(img, width=200, caption=None)
                 img_displayed = True
             except Exception:
                 st.info("이미지를 불러올 수 없습니다.")

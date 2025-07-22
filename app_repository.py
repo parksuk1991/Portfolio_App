@@ -432,7 +432,13 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
 
 def main():
     st.title("📈 Portfolio Backtesting App")
-    st.markdown("##### 만든이: 박석")
+    #st.markdown("##### 만든이: 박석")
+    st.markdown(
+    "<div style='margin-top: -1px; text-align:center;'>"
+    "<span style='font-size:0.9rem; color:#888;'>Made by parksuk1991</span>"
+    "</div>",
+    unsafe_allow_html=True
+    )
     st.markdown(
         '<div style="text-align: right; margin-bottom: 10px;">'
         'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'

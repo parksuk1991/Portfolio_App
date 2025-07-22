@@ -12,6 +12,7 @@ import plotly.express as px
 from scipy.stats import pearsonr
 import requests
 from PIL import Image
+from io import BytesIO
 import warnings
 warnings.filterwarnings('ignore')
 

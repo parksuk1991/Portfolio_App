@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from scipy.stats import pearsonr
 import requests
+from PIL import Image
 import warnings
 warnings.filterwarnings('ignore')
 

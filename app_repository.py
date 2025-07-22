@@ -10,6 +10,7 @@ import datetime as dt
 import plotly.graph_objects as go
 import plotly.express as px
 from scipy.stats import pearsonr
+import requests
 import warnings
 warnings.filterwarnings('ignore')
 

@@ -472,7 +472,7 @@ def main():
         unsafe_allow_html=True
         )
         st.markdown(
-            '<div style="text-align: center; margin-bottom: 8px;">'
+            '<div style="text-align: center; margin-bottom: 7.5px;">'
             'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'
             '</div>',
             unsafe_allow_html=True

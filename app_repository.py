@@ -472,11 +472,13 @@ def main():
         unsafe_allow_html=True
         )
         st.markdown(
-            '<div style="text-align: right; margin-bottom: 10px;">'
+            '<div style="text-align: center; margin-bottom: 9px;">'
             'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'
             '</div>',
             unsafe_allow_html=True
         )
+
+    
     with st.expander("📋 앱 소개", expanded=False):
         col1, col2 = st.columns([3, 1])
         with col1:

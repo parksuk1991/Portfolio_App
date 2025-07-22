@@ -434,29 +434,50 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
     return fig_yearly, fig_monthly
 
 def main():
-    st.title("📈 Portfolio Backtesting App")
+    col_title, col_img_credit = st.columns([7, 1])
+    with col_title:
+        st.title("📈 Portfolio Backtesting App")
+        #st.markdown("##### 만든이: 박석")
+    with col_img_credit:
+    # 닐 암스트롱 달착륙 사진(퍼블릭 도메인, NASA) - 다운로드 실패시 대체 아이콘 제공
+        image_url = "https://cdn.theatlantic.com/thumbor/gjwD-uCiv0sHowRxQrQgL9b3Shk=/900x638/media/img/photo/2019/07/apollo-11-moon-landing-photos-50-ye/a01_40-5903/original.jpg"
+        fallback_icon = "https://cdn-icons-png.flaticon.com/512/3211/3211357.png"  # 우주인 아이콘 (flaticon)
+        img_displayed = False
+        try:
+            response = requests.get(image_url, timeout=5)
+            response.raise_for_status()
+            img = Image.open(BytesIO(response.content))
+            st.image(img, width=150, caption=None)
+            img_displayed = True
+        except Exception:
+            try:
+                response = requests.get(fallback_icon, timeout=5)
+                response.raise_for_status()
+                img = Image.open(BytesIO(response.content))
+                st.image(img, width=150, caption=None)
+                img_displayed = True
+            except Exception:
+                st.info("이미지를 불러올 수 없습니다.")
+
+
+    
+    #st.title("📈 Portfolio Backtesting App")
     #st.markdown("##### 만든이: 박석")
     
-    image_url = "https://cdn.theatlantic.com/thumbor/gjwD-uCiv0sHowRxQrQgL9b3Shk=/900x638/media/img/photo/2019/07/apollo-11-moon-landing-photos-50-ye/a01_40-5903/original.jpg"
-    img_displayed = False
-    response = requests.get(image_url, timeout=5)
-    response.raise_for_status()
-    img = Image.open(BytesIO(response.content))
-    st.image(img, width=150, caption=None)
-    img_displayed = True
 
-    st.markdown(
-    "<div style='margin-top: -1px; text-align:right;'>"
-    "<span style='font-size:0.9rem; color:#888;'>Made by parksuk1991</span>"
-    "</div>",
-    unsafe_allow_html=True
-    )
-    st.markdown(
-        '<div style="text-align: right; margin-bottom: 10px;">'
-        'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'
-        '</div>',
+
+        st.markdown(
+        "<div style='margin-top: -1px; text-align:right;'>"
+        "<span style='font-size:0.9rem; color:#888;'>Made by parksuk1991</span>"
+        "</div>",
         unsafe_allow_html=True
-    )
+        )
+        st.markdown(
+            '<div style="text-align: right; margin-bottom: 10px;">'
+            'Data 출처: <a href="https://finance.yahoo.com/" target="_blank">Yahoo Finance</a>'
+            '</div>',
+            unsafe_allow_html=True
+        )
     with st.expander("📋 앱 소개", expanded=False):
         col1, col2 = st.columns([3, 1])
         with col1:

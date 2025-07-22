@@ -434,7 +434,7 @@ def main():
     st.title("📈 Portfolio Backtesting App")
     #st.markdown("##### 만든이: 박석")
     st.markdown(
-    "<div style='margin-top: -1px; text-align:center;'>"
+    "<div style='margin-top: -1px; text-align:right;'>"
     "<span style='font-size:0.9rem; color:#888;'>Made by parksuk1991</span>"
     "</div>",
     unsafe_allow_html=True

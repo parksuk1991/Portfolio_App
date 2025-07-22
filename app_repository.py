@@ -434,7 +434,7 @@ def create_performance_charts(portfolio_returns, benchmark_returns, benchmark_na
     return fig_yearly, fig_monthly
 
 def main():
-    col_title, col_img_credit = st.columns([6, 1])
+    col_title, col_img_credit = st.columns([9, 1])
     with col_title:
         st.title("📈 Portfolio Backtesting App")
         #st.markdown("##### 만든이: 박석")

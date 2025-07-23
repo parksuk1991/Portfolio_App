@@ -439,9 +439,8 @@ def main():
         st.title("📈 Portfolio Backtesting App")
         #st.markdown("##### 만든이: 박석")
     with col_img_credit:
-    # 닐 암스트롱 달착륙 사진(퍼블릭 도메인, NASA) - 다운로드 실패시 대체 아이콘 제공
         image_url = "https://amateurphotographer.com/wp-content/uploads/sites/7/2017/08/Screen-Shot-2017-08-23-at-22.29.18.png?w=600.jpg" # for parksuk1991
-        fallback_icon = "https://cdn-icons-png.flaticon.com/512/3211/3211357.png"  # 우주인 아이콘 (flaticon)
+        fallback_icon = "https://cdn-icons-png.flaticon.com/512/3211/3211357.png"  
         img_displayed = False
         try:
             response = requests.get(image_url, timeout=5)
@@ -458,10 +457,6 @@ def main():
                 img_displayed = True
             except Exception:
                 st.info("이미지를 불러올 수 없습니다.")
-
-
-    #st.title("📈 Portfolio Backtesting App")
-    #st.markdown("##### 만든이: 박석")
     
 
 
